@@ -9,7 +9,6 @@ class NekoSynthAudioProcessor::NekoVoice : public juce::SynthesiserVoice
 public:
     NekoVoice(NekoSynthAudioProcessor& p) : processor(p) 
     {
-        // Initialize envelope
         envelope.setSampleRate(44100.0);
     }
     
@@ -28,7 +27,6 @@ public:
         noteNumber = midiNoteNumber;
         baseFrequency = 440.0f * std::pow(2.0f, (midiNoteNumber - 69) / 12.0f);
         
-        // Update envelope parameters from processor
         juce::ADSR::Parameters params;
         params.attack = *processor.attack;
         params.decay = *processor.decay;
@@ -69,7 +67,6 @@ public:
             float pitchMultiplier = 1.0f + pitchBend * 0.05f;
             float frequency = baseFrequency * pitchMultiplier;
             
-            // MEOW: Cat-like pitch sweep
             if (*processor.catMode > 0.5f)
             {
                 float sweep = std::sin(currentAngle * 0.5f) * 0.1f;
@@ -82,7 +79,6 @@ public:
                 }
             }
             
-            // BARK: Dog-like pitch sweep
             if (*processor.dogMode > 0.5f)
             {
                 float barkPhase = std::fmod(currentAngle * 2.0f, 1.0f);
@@ -96,7 +92,6 @@ public:
             
             if (*processor.catMode > 0.5f)
             {
-                // Cat: Sine wave with harmonics
                 sample = std::sin(currentAngle);
                 sample += std::sin(currentAngle * 2.0f) * 0.3f;
                 sample += std::sin(currentAngle * 3.0f) * 0.1f;
@@ -104,7 +99,6 @@ public:
             }
             else
             {
-                // Dog: Saw-like wave
                 sample = 2.0f * (currentAngle / juce::MathConstants<float>::twoPi) - 1.0f;
                 sample += std::sin(currentAngle * 2.0f) * 0.5f;
                 sample = std::tanh(sample * 2.0f) * 0.5f;
@@ -144,6 +138,13 @@ private:
 };
 
 //==============================================================================
+struct DummySound : public juce::SynthesiserSound
+{
+    bool appliesToNote(int) override { return true; }
+    bool appliesToChannel(int) override { return true; }
+};
+
+//==============================================================================
 NekoSynthAudioProcessor::NekoSynthAudioProcessor()
     : AudioProcessor(BusesProperties().withOutput("Output", juce::AudioChannelSet::stereo(), true)),
       apvts(*this, nullptr, "Parameters", createParameters())
@@ -159,8 +160,7 @@ NekoSynthAudioProcessor::NekoSynthAudioProcessor()
     for (int i = 0; i < 8; ++i)
         synth.addVoice(new NekoVoice(*this));
     
-    // Add dummy sound
-    synth.addSound(new juce::SamplerSound("default", *new juce::AudioSampleBuffer(), 440, 0, 0, 0, 10.0));
+    synth.addSound(new DummySound());
 }
 
 NekoSynthAudioProcessor::~NekoSynthAudioProcessor()
