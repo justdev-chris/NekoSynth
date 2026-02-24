@@ -1,6 +1,5 @@
 #pragma once
 
-// Include JUCE modules directly (no JuceHeader.h)
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_audio_plugin_client/juce_audio_plugin_client.h>
 #include <juce_audio_processors/juce_audio_processors.h>
@@ -25,13 +24,33 @@ public:
 
     const juce::String getName() const override { return "NekoSynth"; }
 
+    // Pure virtual overrides (MANDATORY)
+    bool acceptsMidi() const override { return true; }
+    bool producesMidi() const override { return false; }
+    double getTailLengthSeconds() const override { return 0.0; }
+
+    // Program overrides
+    int getNumPrograms() override { return 1; }
+    int getCurrentProgram() override { return 0; }
+    void setCurrentProgram(int) override {}
+    const juce::String getProgramName(int) override { return {}; }
+    void changeProgramName(int, const juce::String&) override {}
+
+    // State overrides
+    void getStateInformation(juce::MemoryBlock& destData) override;
+    void setStateInformation(const void* data, int sizeInBytes) override;
+
     // Parameters
     juce::AudioProcessorValueTreeState apvts;
     
-    // Animal selection
+    // Atomic pointers for thread-safe parameter access
     std::atomic<float>* catMode = nullptr;
     std::atomic<float>* dogMode = nullptr;
     std::atomic<float>* volume = nullptr;
+    std::atomic<float>* attack = nullptr;
+    std::atomic<float>* decay = nullptr;
+    std::atomic<float>* sustain = nullptr;
+    std::atomic<float>* release = nullptr;
 
 private:
     class NekoVoice;
