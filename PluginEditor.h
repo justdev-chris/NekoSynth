@@ -1,5 +1,7 @@
 #pragma once
-#include <JuceHeader.h>
+
+#include <juce_gui_basics/juce_gui_basics.h>
+#include <juce_audio_processors/juce_audio_processors.h>
 #include "PluginProcessor.h"
 
 class NekoSynthAudioProcessorEditor : public juce::AudioProcessorEditor,
@@ -16,7 +18,6 @@ public:
 private:
     NekoSynthAudioProcessor& audioProcessor;
     
-    // GUI Components
     juce::TextButton catButton;
     juce::TextButton dogButton;
     juce::Slider volumeSlider;
@@ -25,19 +26,15 @@ private:
     juce::Slider sustainSlider;
     juce::Slider releaseSlider;
     
-    // Labels
     juce::Label volumeLabel;
     juce::Label attackLabel;
     juce::Label decayLabel;
     juce::Label sustainLabel;
     juce::Label releaseLabel;
     
-    // Animation
     float earWiggle = 0.0f;
     float tailWag = 0.0f;
-    int lastNote = 0;
     
-    // Parameter attachments
     using Attachment = juce::AudioProcessorValueTreeState::ButtonAttachment;
     using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
     
