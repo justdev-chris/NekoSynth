@@ -13,6 +13,37 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+    
+    - name: Clone JUCE
+      run: |
+        git clone https://github.com/juce-framework/JUCE.git
+        echo "JUCE_ROOT=${{ github.workspace }}/JUCE" >> $GITHUB_ENV
+    
+    - name: Configure
+      run: cmake -Bbuild -DCMAKE_BUILD_TYPE=Release
+    
+    - name: Build
+      run: cmake --build build --config Release
+    
+    - name: Upload VST3
+      uses: actions/upload-artifact@v4
+      with:
+        name: NekoSynth
+        path: build/NekoSynth_artefacts/Release/VST3/NekoSynth.vst3name: Build NekoSynth (Windows)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
       with:
         submodules: recursive
     
