@@ -13,11 +13,15 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        submodules: recursive
     
-    - name: Setup JUCE
-      run: git clone https://github.com/juce-framework/JUCE.git
+    - name: Get JUCE
+      run: |
+        git clone https://github.com/juce-framework/JUCE.git
+        echo "JUCE_ROOT=${{ github.workspace }}/JUCE" >> $GITHUB_ENV
     
-    - name: Build with CMake
+    - name: Build
       run: |
         cmake -Bbuild -DCMAKE_BUILD_TYPE=Release
         cmake --build build --config Release
