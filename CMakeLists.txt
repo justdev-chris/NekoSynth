@@ -4,14 +4,14 @@ project(NekoSynth VERSION 1.0.0)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Find JUCE - using the submodule you cloned in workflow
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/JUCE/CMakeLists.txt")
-    add_subdirectory(JUCE)
-else()
-    message(FATAL_ERROR "JUCE not found! Please clone JUCE into the repo or set JUCE_ROOT")
+# Find or download JUCE
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/JUCE/CMakeLists.txt")
+    message(FATAL_ERROR "JUCE not found! Please clone JUCE into ${CMAKE_CURRENT_SOURCE_DIR}/JUCE")
 endif()
 
-# Create plugin target
+add_subdirectory(JUCE)
+
+# Create plugin target with proper settings
 juce_add_plugin(NekoSynth
     PRODUCT_NAME "NekoSynth"
     FORMATS VST3
@@ -28,7 +28,7 @@ target_sources(NekoSynth PRIVATE
     PluginEditor.cpp
 )
 
-# Add JUCE modules
+# Link JUCE modules - THIS IS CRITICAL
 target_link_libraries(NekoSynth PRIVATE
     juce::juce_audio_basics
     juce::juce_audio_plugin_client
@@ -38,17 +38,20 @@ target_link_libraries(NekoSynth PRIVATE
     juce::juce_graphics
     juce::juce_data_structures
     juce::juce_events
+    juce::juce_core
 )
 
-# Fix include paths
+# Add include paths
 target_include_directories(NekoSynth PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
+    ${JUCE_ROOT}/modules
 )
 
 # Add compiler definitions
 target_compile_definitions(NekoSynth PRIVATE
     JUCE_PLUGINHOST_VST3=1
     JUCE_VST3_CAN_REPLACE_VST2=0
+    JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1
 )
 
 # Enable the plugin client
