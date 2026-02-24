@@ -19,16 +19,6 @@ jobs:
     
     - name: Configure
       run: cmake -Bbuild -DCMAKE_BUILD_TYPE=Release
-   
-    - name: Debug file structure
-      run: |
-       dir
-       echo "=== JUCE folder ==="
-       dir JUCE
-       echo "=== JUCE modules folder ==="
-       dir JUCE\modules
-       echo "=== Looking for JuceHeader.h ==="
-       dir JUCE\modules\juce_audio_basics /s | find "JuceHeader.h"
   
     - name: Build
       run: cmake --build build --config Release
