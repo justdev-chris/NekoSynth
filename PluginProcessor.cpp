@@ -7,7 +7,11 @@
 class NekoSynthAudioProcessor::NekoVoice : public juce::SynthesiserVoice
 {
 public:
-    NekoVoice(NekoSynthAudioProcessor& p) : processor(p) {}
+    NekoVoice(NekoSynthAudioProcessor& p) : processor(p) 
+    {
+        // Initialize envelope
+        envelope.setSampleRate(44100.0);
+    }
     
     bool canPlaySound(juce::SynthesiserSound* sound) override
     {
@@ -21,22 +25,25 @@ public:
         level = velocity * 0.5;
         tailWagPhase = 0.0;
         
-        // Store note for pitch calculations
         noteNumber = midiNoteNumber;
         baseFrequency = 440.0f * std::pow(2.0f, (midiNoteNumber - 69) / 12.0f);
         
-        // Trigger envelope
-        envelopeNoteOn();
+        // Update envelope parameters from processor
+        juce::ADSR::Parameters params;
+        params.attack = *processor.attack;
+        params.decay = *processor.decay;
+        params.sustain = *processor.sustain;
+        params.release = *processor.release;
+        envelope.setParameters(params);
         
-        // Randomize animation
-        randomPhase = rand() % 100 / 100.0f;
+        envelope.noteOn();
     }
     
     void stopNote(float, bool allowTailOff) override
     {
         if (allowTailOff)
         {
-            envelopeNoteOff();
+            envelope.noteOff();
         }
         else
         {
@@ -47,7 +54,7 @@ public:
     
     void pitchWheelMoved(int newValue) override
     {
-        pitchBend = (newValue - 8192) / 8192.0f; // Range -1 to 1
+        pitchBend = (newValue - 8192) / 8192.0f;
     }
     
     void controllerMoved(int, int) override {}
@@ -59,19 +66,15 @@ public:
         
         while (--numSamples >= 0)
         {
-            // Apply pitch bend
             float pitchMultiplier = 1.0f + pitchBend * 0.05f;
-            
-            // Get current frequency with animal-specific modulation
             float frequency = baseFrequency * pitchMultiplier;
             
-            // MEOW: Cat-like pitch sweep (fast up/down like a meow)
+            // MEOW: Cat-like pitch sweep
             if (*processor.catMode > 0.5f)
             {
-                float sweep = std::sin(currentAngle * 0.5f) * 0.1f; // Pitch wobble
+                float sweep = std::sin(currentAngle * 0.5f) * 0.1f;
                 frequency *= 1.0f + sweep;
                 
-                // Add fast upward sweep like a "meow"
                 if (tailWagPhase < 1000.0f)
                 {
                     frequency *= 1.0f + (tailWagPhase / 1000.0f) * 0.2f;
@@ -79,7 +82,7 @@ public:
                 }
             }
             
-            // BARK: Dog-like pitch sweep (short, repetitive bursts)
+            // BARK: Dog-like pitch sweep
             if (*processor.dogMode > 0.5f)
             {
                 float barkPhase = std::fmod(currentAngle * 2.0f, 1.0f);
@@ -89,61 +92,46 @@ public:
                 }
             }
             
-            // Calculate sample
             float sample = 0.0f;
             
-            // Generate waveform based on animal
             if (*processor.catMode > 0.5f)
             {
-                // Cat: Sine wave with slight harmonics (purr-like)
+                // Cat: Sine wave with harmonics
                 sample = std::sin(currentAngle);
-                sample += std::sin(currentAngle * 2.0f) * 0.3f; // Harmonic
-                sample += std::sin(currentAngle * 3.0f) * 0.1f; // More harmonics
-                sample /= 1.4f; // Normalize
+                sample += std::sin(currentAngle * 2.0f) * 0.3f;
+                sample += std::sin(currentAngle * 3.0f) * 0.1f;
+                sample /= 1.4f;
             }
             else
             {
-                // Dog: Saw-like wave (barkier sound)
+                // Dog: Saw-like wave
                 sample = 2.0f * (currentAngle / juce::MathConstants<float>::twoPi) - 1.0f;
-                sample += std::sin(currentAngle * 2.0f) * 0.5f; // Add harmonics
-                sample = std::tanh(sample * 2.0f) * 0.5f; // Soft clip for bark texture
+                sample += std::sin(currentAngle * 2.0f) * 0.5f;
+                sample = std::tanh(sample * 2.0f) * 0.5f;
             }
             
-            // Apply envelope
             float env = envelope.getNextSample();
             sample *= level * env * *processor.volume;
             
-            // Add to output (stereo)
             for (int channel = 0; channel < outputBuffer.getNumChannels(); ++channel)
             {
                 outputBuffer.addSample(channel, startSample, sample * 0.5f);
             }
             
-            // Update phase
             currentAngle += frequency * 2.0 * juce::MathConstants<double>::pi / getSampleRate();
             
-            // Keep phase in range
             if (currentAngle >= juce::MathConstants<double>::twoPi)
                 currentAngle -= juce::MathConstants<double>::twoPi;
             
             startSample++;
         }
         
-        // Check if we should turn off
         if (!envelope.isActive())
             clearCurrentNote();
     }
     
-    void envelopeNoteOn()
-    {
-        envelope.noteOn();
-    }
-    
-    void envelopeNoteOff()
-    {
-        envelope.noteOff();
-    }
-    
+    juce::ADSR envelope;
+
 private:
     NekoSynthAudioProcessor& processor;
     
@@ -153,13 +141,6 @@ private:
     int noteNumber = 60;
     float pitchBend = 0.0f;
     float tailWagPhase = 0.0f;
-    float randomPhase = 0.0f;
-    
-    // ADSR Envelope
-    juce::ADSR envelope;
-    
-    // Tail wag animation tracking
-    juce::ADSR::Parameters envelopeParams { 0.1f, 0.1f, 0.8f, 0.2f };
 };
 
 //==============================================================================
@@ -167,16 +148,19 @@ NekoSynthAudioProcessor::NekoSynthAudioProcessor()
     : AudioProcessor(BusesProperties().withOutput("Output", juce::AudioChannelSet::stereo(), true)),
       apvts(*this, nullptr, "Parameters", createParameters())
 {
-    // Get parameters
     catMode = apvts.getRawParameterValue("catMode");
     dogMode = apvts.getRawParameterValue("dogMode");
+    volume = apvts.getRawParameterValue("volume");
+    attack = apvts.getRawParameterValue("attack");
+    decay = apvts.getRawParameterValue("decay");
+    sustain = apvts.getRawParameterValue("sustain");
+    release = apvts.getRawParameterValue("release");
     
-    // Add voice to synth
     for (int i = 0; i < 8; ++i)
         synth.addVoice(new NekoVoice(*this));
     
-    // Add a simple sound (required for synth to work)
-    synth.addSound(new juce::SamplerSound("default", *juce::AudioSampleBuffer::empty, 440, 0, 0, 0, 10.0));
+    // Add dummy sound
+    synth.addSound(new juce::SamplerSound("default", *new juce::AudioSampleBuffer(), 440, 0, 0, 0, 10.0));
 }
 
 NekoSynthAudioProcessor::~NekoSynthAudioProcessor()
@@ -188,7 +172,6 @@ void NekoSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlo
 {
     synth.setCurrentPlaybackSampleRate(sampleRate);
     
-    // Update all voices with new sample rate
     for (int i = 0; i < synth.getNumVoices(); ++i)
     {
         if (auto* voice = dynamic_cast<NekoVoice*>(synth.getVoice(i)))
@@ -206,11 +189,9 @@ void NekoSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juc
 {
     juce::ScopedNoDenormals noDenormals;
     
-    // Clear output buffers
     for (int i = 0; i < buffer.getNumChannels(); ++i)
         buffer.clear(i, 0, buffer.getNumSamples());
     
-    // Render synth
     synth.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
 }
 
@@ -225,20 +206,29 @@ juce::AudioProcessorValueTreeState::ParameterLayout NekoSynthAudioProcessor::cre
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
     
-    // Animal mode buttons (as float parameters)
     params.push_back(std::make_unique<juce::AudioParameterFloat>("catMode", "Cat Mode", 0.0f, 1.0f, 1.0f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("dogMode", "Dog Mode", 0.0f, 1.0f, 0.0f));
-    
-    // ADSR parameters
     params.push_back(std::make_unique<juce::AudioParameterFloat>("attack", "Attack", 0.0f, 5.0f, 0.1f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("decay", "Decay", 0.0f, 5.0f, 0.1f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("sustain", "Sustain", 0.0f, 1.0f, 0.8f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("release", "Release", 0.0f, 5.0f, 0.2f));
-    
-    // Volume
     params.push_back(std::make_unique<juce::AudioParameterFloat>("volume", "Volume", 0.0f, 1.0f, 0.5f));
     
     return { params.begin(), params.end() };
+}
+
+void NekoSynthAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
+{
+    auto state = apvts.copyState();
+    std::unique_ptr<juce::XmlElement> xml(state.createXml());
+    copyXmlToBinary(*xml, destData);
+}
+
+void NekoSynthAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
+{
+    std::unique_ptr<juce::XmlElement> xml(getXmlFromBinary(data, sizeInBytes));
+    if (xml != nullptr)
+        apvts.replaceState(juce::ValueTree::fromXml(*xml));
 }
 
 //==============================================================================
