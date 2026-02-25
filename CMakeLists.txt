@@ -13,9 +13,11 @@ add_subdirectory(JUCE)
 juce_add_plugin(NekoSynth
     PRODUCT_NAME "NekoSynth"
     FORMATS VST3
-    PLUGIN_MANUFACTURER_CODE "justdev-chris"
-    PLUGIN_CODE "NekoSynth"
-    DESCRIPTION "Meow+Bark Synth by justdev-chris"
+    PLUGIN_MANUFACTURER_CODE "JDC "
+    PLUGIN_CODE "NSyn"
+    VST3_PLUGIN_MANUFACTURER "justdev-chris"
+    VST3_PLUGIN_NAME "NekoSynth"
+    DESCRIPTION "Meow+Bark Synth"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
 )
@@ -30,7 +32,6 @@ target_link_libraries(NekoSynth PRIVATE
     juce::juce_audio_plugin_client
     juce::juce_audio_processors
     juce::juce_audio_utils
-    juce::juce_audio_formats
     juce::juce_gui_basics
     juce::juce_graphics
     juce::juce_data_structures
