@@ -4,29 +4,37 @@ project(NekoSynth VERSION 1.0.0)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# --- JUCE setup ---
 if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/JUCE/CMakeLists.txt")
     message(FATAL_ERROR "JUCE not found! Please clone JUCE into ${CMAKE_CURRENT_SOURCE_DIR}/JUCE")
 endif()
 
+# force global JUCE vendor info
+set(JUCE_MODULE_VENDOR "justdev-chris")
+set(JUCE_PLUGIN_MANUFACTURER "justdev-chris")
+
 add_subdirectory(JUCE)
 
+# --- plugin ---
 juce_add_plugin(NekoSynth
     PRODUCT_NAME "NekoSynth"
     FORMATS VST3
-    PLUGIN_MANUFACTURER_CODE "JDC "
+    PLUGIN_MANUFACTURER_CODE "JDC1"  # <-- new unique 4-char code
     PLUGIN_CODE "NSyn"
     VST3_PLUGIN_MANUFACTURER "justdev-chris"
     VST3_PLUGIN_NAME "NekoSynth"
-    DESCRIPTION "Meow+Bark Synth"
+    DESCRIPTION "Meow + Bark Synth"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
 )
 
+# --- source files ---
 target_sources(NekoSynth PRIVATE
     PluginProcessor.cpp
     PluginEditor.cpp
 )
 
+# --- link JUCE modules ---
 target_link_libraries(NekoSynth PRIVATE
     juce::juce_audio_basics
     juce::juce_audio_plugin_client
