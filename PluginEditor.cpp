@@ -11,7 +11,6 @@ NekoSynthAudioProcessorEditor::NekoSynthAudioProcessorEditor(NekoSynthAudioProce
     catButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour::fromRGB(0, 180, 255));
     catButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
     catButton.setColour(juce::TextButton::textColourOnId, juce::Colours::white);
-    catButton.setColour(juce::TextButton::buttonNormalBackground, juce::Colour::fromRGB(25, 25, 30));
     addAndMakeVisible(catButton);
     
     // ===== DOG BUTTON =====
@@ -21,7 +20,6 @@ NekoSynthAudioProcessorEditor::NekoSynthAudioProcessorEditor(NekoSynthAudioProce
     dogButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour::fromRGB(255, 140, 40));
     dogButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
     dogButton.setColour(juce::TextButton::textColourOnId, juce::Colours::white);
-    dogButton.setColour(juce::TextButton::buttonNormalBackground, juce::Colour::fromRGB(25, 25, 30));
     addAndMakeVisible(dogButton);
     
     // ===== WAVEFORM SELECTOR =====
