@@ -51,13 +51,13 @@ NekoSynthAudioProcessorEditor::NekoSynthAudioProcessorEditor(NekoSynthAudioProce
         addAndMakeVisible(label);
     }
     
-    catAttachment = std::make_unique<ButtonAttachment>(audioProcessor.apvts, "catMode", catButton);
-    dogAttachment = std::make_unique<ButtonAttachment>(audioProcessor.apvts, "dogMode", dogButton);
-    volumeAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "volume", volumeSlider);
-    attackAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "attack", attackSlider);
-    decayAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "decay", decaySlider);
-    sustainAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "sustain", sustainSlider);
-    releaseAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "release", releaseSlider);
+    catAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(audioProcessor.apvts, "catMode", catButton);
+    dogAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(audioProcessor.apvts, "dogMode", dogButton);
+    volumeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "volume", volumeSlider);
+    attackAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "attack", attackSlider);
+    decayAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "decay", decaySlider);
+    sustainAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "sustain", sustainSlider);
+    releaseAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "release", releaseSlider);
     
     setSize(400, 250);
 }
@@ -79,6 +79,7 @@ void NekoSynthAudioProcessorEditor::paint(juce::Graphics& g)
     
     g.fillRect(0, 0, getWidth(), 3);
     
+    // justdev-chris credit
     g.setColour(juce::Colours::white.withAlpha(0.3f));
     g.setFont(juce::Font(12.0f));
     g.drawText("justdev-chris", getWidth() - 100, getHeight() - 20, 90, 15, juce::Justification::right);
