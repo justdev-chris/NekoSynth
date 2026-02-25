@@ -1,6 +1,5 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
-#include <juce_audio_formats/juce_audio_formats.h>
 #include <cmath>
 #include <random>
 
@@ -24,6 +23,7 @@ public:
         level = velocity * 0.5;
         tailWagPhase = 0.0;
         
+        noteNumber = midiNoteNumber;
         baseFrequency = 440.0f * std::pow(2.0f, (midiNoteNumber - 69) / 12.0f);
         
         juce::ADSR::Parameters params;
@@ -66,7 +66,6 @@ public:
             float pitchMultiplier = 1.0f + pitchBend * 0.05f;
             float frequency = baseFrequency * pitchMultiplier;
             
-            // COMPLEX MEOW SOUND (actual cat-like)
             if (*processor.catMode > 0.5f)
             {
                 float meowPhase = std::fmod(currentAngle * 0.2f, 1.0f);
@@ -81,7 +80,6 @@ public:
                 frequency *= 1.0f + std::sin(currentAngle * 5.0f) * 0.02f;
             }
             
-            // COMPLEX BARK SOUND (actual dog-like, NO RAND())
             if (*processor.dogMode > 0.5f)
             {
                 float barkPhase = std::fmod(currentAngle * 0.5f, 1.0f);
@@ -93,8 +91,7 @@ public:
                 else
                     frequency *= 0.1f;
                 
-                // REPLACED RAND() WITH SIN LFO - SAFE FOR AUDIO THREAD
-                float noise = std::sin(currentAngle * 50.0f) * 0.5f;
+                float noise = (rand() % 1000) / 500.0f - 1.0f;
                 frequency *= 1.0f + noise * 0.03f * (barkPhase < 0.3f ? 1.0f : 0.0f);
             }
             
@@ -142,8 +139,16 @@ private:
     double currentAngle = 0.0;
     double baseFrequency = 440.0;
     float level = 0.0;
+    int noteNumber = 60;
     float pitchBend = 0.0f;
     float tailWagPhase = 0.0f;
+};
+
+// DUMMY SOUND FIX - THIS IS THE IMPORTANT PART
+struct DummySound : public juce::SynthesiserSound
+{
+    bool appliesToNote(int) override { return true; }
+    bool appliesToChannel(int) override { return true; }
 };
 
 NekoSynthAudioProcessor::NekoSynthAudioProcessor()
@@ -161,8 +166,8 @@ NekoSynthAudioProcessor::NekoSynthAudioProcessor()
     for (int i = 0; i < 8; ++i)
         synth.addVoice(new NekoVoice(*this));
     
-    auto* buffer = new juce::AudioSampleBuffer();
-    synth.addSound(new juce::SamplerSound("default", *buffer, 440, 0, 0, 0, 10.0));
+    // FIXED: Using DummySound instead of SamplerSound
+    synth.addSound(new DummySound());
 }
 
 NekoSynthAudioProcessor::~NekoSynthAudioProcessor()
