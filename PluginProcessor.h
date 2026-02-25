@@ -24,26 +24,21 @@ public:
 
     const juce::String getName() const override { return "NekoSynth"; }
 
-    // Pure virtual overrides (MANDATORY)
     bool acceptsMidi() const override { return true; }
     bool producesMidi() const override { return false; }
     double getTailLengthSeconds() const override { return 0.0; }
 
-    // Program overrides
     int getNumPrograms() override { return 1; }
     int getCurrentProgram() override { return 0; }
     void setCurrentProgram(int) override {}
     const juce::String getProgramName(int) override { return {}; }
     void changeProgramName(int, const juce::String&) override {}
 
-    // State overrides
     void getStateInformation(juce::MemoryBlock& destData) override;
     void setStateInformation(const void* data, int sizeInBytes) override;
 
-    // Parameters
     juce::AudioProcessorValueTreeState apvts;
     
-    // Atomic pointers for thread-safe parameter access
     std::atomic<float>* catMode = nullptr;
     std::atomic<float>* dogMode = nullptr;
     std::atomic<float>* volume = nullptr;
