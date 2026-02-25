@@ -1,113 +1,236 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include <juce_audio_formats/juce_audio_formats.h>
+#include <cmath>
+#include <random>
 
-NekoSynthAudioProcessorEditor::NekoSynthAudioProcessorEditor(NekoSynthAudioProcessor& p)
-    : AudioProcessorEditor(&p), audioProcessor(p)
+class NekoSynthAudioProcessor::NekoVoice : public juce::SynthesiserVoice
 {
-    catButton.setButtonText("🐱 CAT");
-    catButton.setClickingTogglesState(true);
-    catButton.setColour(juce::TextButton::buttonColourId, juce::Colour::fromRGB(40, 40, 50));
-    catButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour::fromRGB(80, 140, 200));
-    catButton.setColour(juce::TextButton::textColourOffId, juce::Colours::grey);
-    catButton.setColour(juce::TextButton::textColourOnId, juce::Colours::white);
-    addAndMakeVisible(catButton);
-    
-    dogButton.setButtonText("🐶 DOG");
-    dogButton.setClickingTogglesState(true);
-    dogButton.setColour(juce::TextButton::buttonColourId, juce::Colour::fromRGB(40, 40, 50));
-    dogButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour::fromRGB(180, 130, 80));
-    dogButton.setColour(juce::TextButton::textColourOffId, juce::Colours::grey);
-    dogButton.setColour(juce::TextButton::textColourOnId, juce::Colours::white);
-    addAndMakeVisible(dogButton);
-    
-    volumeSlider.setSliderStyle(juce::Slider::LinearVertical);
-    volumeSlider.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
-    volumeSlider.setColour(juce::Slider::trackColourId, juce::Colour::fromRGB(100, 100, 120));
-    volumeSlider.setColour(juce::Slider::thumbColourId, juce::Colour::fromRGB(200, 200, 220));
-    addAndMakeVisible(volumeSlider);
-    volumeLabel.setText("VOL", juce::dontSendNotification);
-    volumeLabel.setColour(juce::Label::textColourId, juce::Colours::grey);
-    volumeLabel.setJustificationType(juce::Justification::centred);
-    addAndMakeVisible(volumeLabel);
-    
-    for (auto* slider : { &attackSlider, &decaySlider, &sustainSlider, &releaseSlider })
+public:
+    NekoVoice(NekoSynthAudioProcessor& p) : processor(p) 
     {
-        slider->setSliderStyle(juce::Slider::LinearVertical);
-        slider->setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
-        slider->setColour(juce::Slider::trackColourId, juce::Colour::fromRGB(100, 100, 120));
-        slider->setColour(juce::Slider::thumbColourId, juce::Colour::fromRGB(200, 200, 220));
-        addAndMakeVisible(slider);
+        envelope.setSampleRate(44100.0);
     }
     
-    attackLabel.setText("A", juce::dontSendNotification);
-    decayLabel.setText("D", juce::dontSendNotification);
-    sustainLabel.setText("S", juce::dontSendNotification);
-    releaseLabel.setText("R", juce::dontSendNotification);
-    
-    for (auto* label : { &attackLabel, &decayLabel, &sustainLabel, &releaseLabel })
+    bool canPlaySound(juce::SynthesiserSound* sound) override
     {
-        label->setColour(juce::Label::textColourId, juce::Colours::grey);
-        label->setJustificationType(juce::Justification::centred);
-        addAndMakeVisible(label);
+        return dynamic_cast<juce::SynthesiserSound*>(sound) != nullptr;
     }
     
-    catAttachment = std::make_unique<ButtonAttachment>(audioProcessor.apvts, "catMode", catButton);
-    dogAttachment = std::make_unique<ButtonAttachment>(audioProcessor.apvts, "dogMode", dogButton);
-    volumeAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "volume", volumeSlider);
-    attackAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "attack", attackSlider);
-    decayAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "decay", decaySlider);
-    sustainAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "sustain", sustainSlider);
-    releaseAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "release", releaseSlider);
+    void startNote(int midiNoteNumber, float velocity, 
+                   juce::SynthesiserSound*, int) override
+    {
+        currentAngle = 0.0;
+        level = velocity * 0.5;
+        tailWagPhase = 0.0;
+        
+        baseFrequency = 440.0f * std::pow(2.0f, (midiNoteNumber - 69) / 12.0f);
+        
+        juce::ADSR::Parameters params;
+        params.attack = *processor.attack;
+        params.decay = *processor.decay;
+        params.sustain = *processor.sustain;
+        params.release = *processor.release;
+        envelope.setParameters(params);
+        
+        envelope.noteOn();
+    }
     
-    setSize(400, 250);
+    void stopNote(float, bool allowTailOff) override
+    {
+        if (allowTailOff)
+        {
+            envelope.noteOff();
+        }
+        else
+        {
+            clearCurrentNote();
+            envelope.reset();
+        }
+    }
+    
+    void pitchWheelMoved(int newValue) override
+    {
+        pitchBend = (newValue - 8192) / 8192.0f;
+    }
+    
+    void controllerMoved(int, int) override {}
+    
+    void renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int startSample, int numSamples) override
+    {
+        if (!isVoiceActive())
+            return;
+        
+        while (--numSamples >= 0)
+        {
+            float pitchMultiplier = 1.0f + pitchBend * 0.05f;
+            float frequency = baseFrequency * pitchMultiplier;
+            
+            // COMPLEX MEOW SOUND (actual cat-like)
+            if (*processor.catMode > 0.5f)
+            {
+                float meowPhase = std::fmod(currentAngle * 0.2f, 1.0f);
+                
+                if (meowPhase < 0.3f)
+                    frequency *= 1.0f + (meowPhase / 0.3f) * 0.4f;
+                else if (meowPhase < 0.7f)
+                    frequency *= 1.4f - ((meowPhase - 0.3f) / 0.4f) * 0.4f;
+                else
+                    frequency *= 1.0f + std::sin(meowPhase * 10.0f) * 0.05f;
+                
+                frequency *= 1.0f + std::sin(currentAngle * 5.0f) * 0.02f;
+            }
+            
+            // COMPLEX BARK SOUND (actual dog-like, NO RAND())
+            if (*processor.dogMode > 0.5f)
+            {
+                float barkPhase = std::fmod(currentAngle * 0.5f, 1.0f);
+                
+                if (barkPhase < 0.1f)
+                    frequency *= 1.0f + std::sin(barkPhase * 31.4f) * 0.2f;
+                else if (barkPhase < 0.3f)
+                    frequency *= 0.9f + std::cos(barkPhase * 15.7f) * 0.1f;
+                else
+                    frequency *= 0.1f;
+                
+                // REPLACED RAND() WITH SIN LFO - SAFE FOR AUDIO THREAD
+                float noise = std::sin(currentAngle * 50.0f) * 0.5f;
+                frequency *= 1.0f + noise * 0.03f * (barkPhase < 0.3f ? 1.0f : 0.0f);
+            }
+            
+            float sample = 0.0f;
+            
+            if (*processor.catMode > 0.5f)
+            {
+                sample = std::sin(currentAngle);
+                sample += std::sin(currentAngle * 2.0f) * 0.3f;
+                sample += std::sin(currentAngle * 3.0f) * 0.1f;
+                sample /= 1.4f;
+            }
+            else
+            {
+                sample = 2.0f * (currentAngle / juce::MathConstants<float>::twoPi) - 1.0f;
+                sample += std::sin(currentAngle * 2.0f) * 0.5f;
+                sample = std::tanh(sample * 2.0f) * 0.5f;
+            }
+            
+            float env = envelope.getNextSample();
+            sample *= level * env * *processor.volume;
+            
+            for (int channel = 0; channel < outputBuffer.getNumChannels(); ++channel)
+            {
+                outputBuffer.addSample(channel, startSample, sample * 0.5f);
+            }
+            
+            currentAngle += frequency * 2.0 * juce::MathConstants<double>::pi / getSampleRate();
+            
+            if (currentAngle >= juce::MathConstants<double>::twoPi)
+                currentAngle -= juce::MathConstants<double>::twoPi;
+            
+            startSample++;
+        }
+        
+        if (!envelope.isActive())
+            clearCurrentNote();
+    }
+    
+    juce::ADSR envelope;
+
+private:
+    NekoSynthAudioProcessor& processor;
+    
+    double currentAngle = 0.0;
+    double baseFrequency = 440.0;
+    float level = 0.0;
+    float pitchBend = 0.0f;
+    float tailWagPhase = 0.0f;
+};
+
+NekoSynthAudioProcessor::NekoSynthAudioProcessor()
+    : AudioProcessor(BusesProperties().withOutput("Output", juce::AudioChannelSet::stereo(), true)),
+      apvts(*this, nullptr, "Parameters", createParameters())
+{
+    catMode = apvts.getRawParameterValue("catMode");
+    dogMode = apvts.getRawParameterValue("dogMode");
+    volume = apvts.getRawParameterValue("volume");
+    attack = apvts.getRawParameterValue("attack");
+    decay = apvts.getRawParameterValue("decay");
+    sustain = apvts.getRawParameterValue("sustain");
+    release = apvts.getRawParameterValue("release");
+    
+    for (int i = 0; i < 8; ++i)
+        synth.addVoice(new NekoVoice(*this));
+    
+    auto* buffer = new juce::AudioSampleBuffer();
+    synth.addSound(new juce::SamplerSound("default", *buffer, 440, 0, 0, 0, 10.0));
 }
 
-NekoSynthAudioProcessorEditor::~NekoSynthAudioProcessorEditor()
+NekoSynthAudioProcessor::~NekoSynthAudioProcessor()
 {
 }
 
-void NekoSynthAudioProcessorEditor::paint(juce::Graphics& g)
+void NekoSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-    g.fillAll(juce::Colour::fromRGB(25, 25, 30));
+    synth.setCurrentPlaybackSampleRate(sampleRate);
     
-    if (catButton.getToggleState())
-        g.setColour(juce::Colour::fromRGB(80, 140, 200));
-    else if (dogButton.getToggleState())
-        g.setColour(juce::Colour::fromRGB(180, 130, 80));
-    else
-        g.setColour(juce::Colours::darkgrey);
-    
-    g.fillRect(0, 0, getWidth(), 3);
-    
-    // justdev-chris credit
-    g.setColour(juce::Colours::white.withAlpha(0.3f));
-    g.setFont(juce::Font(12.0f));
-    g.drawText("justdev-chris", getWidth() - 100, getHeight() - 20, 90, 15, juce::Justification::right);
+    for (int i = 0; i < synth.getNumVoices(); ++i)
+    {
+        if (auto* voice = dynamic_cast<NekoVoice*>(synth.getVoice(i)))
+        {
+            voice->envelope.setSampleRate(sampleRate);
+        }
+    }
 }
 
-void NekoSynthAudioProcessorEditor::resized()
+void NekoSynthAudioProcessor::releaseResources()
 {
-    auto area = getLocalBounds().reduced(20);
+}
+
+void NekoSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
+{
+    juce::ScopedNoDenormals noDenormals;
     
-    auto topRow = area.removeFromTop(40);
-    catButton.setBounds(topRow.removeFromLeft(100).reduced(2));
-    dogButton.setBounds(topRow.removeFromLeft(100).reduced(2));
+    for (int i = 0; i < buffer.getNumChannels(); ++i)
+        buffer.clear(i, 0, buffer.getNumSamples());
     
-    auto sliderArea = area.reduced(10, 20);
-    int sliderWidth = sliderArea.getWidth() / 5;
+    synth.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
+}
+
+juce::AudioProcessorEditor* NekoSynthAudioProcessor::createEditor()
+{
+    return new NekoSynthAudioProcessorEditor(*this);
+}
+
+juce::AudioProcessorValueTreeState::ParameterLayout NekoSynthAudioProcessor::createParameters()
+{
+    std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
     
-    volumeLabel.setBounds(sliderArea.removeFromLeft(sliderWidth).withHeight(20));
-    volumeSlider.setBounds(sliderArea.removeFromLeft(sliderWidth).reduced(5, 20));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("catMode", "Cat Mode", 0.0f, 1.0f, 1.0f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("dogMode", "Dog Mode", 0.0f, 1.0f, 0.0f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("attack", "Attack", 0.0f, 5.0f, 0.1f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("decay", "Decay", 0.0f, 5.0f, 0.1f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("sustain", "Sustain", 0.0f, 1.0f, 0.8f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("release", "Release", 0.0f, 5.0f, 0.2f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("volume", "Volume", 0.0f, 1.0f, 0.5f));
     
-    attackLabel.setBounds(sliderArea.removeFromLeft(sliderWidth).withHeight(20));
-    attackSlider.setBounds(sliderArea.removeFromLeft(sliderWidth).reduced(5, 20));
-    
-    decayLabel.setBounds(sliderArea.removeFromLeft(sliderWidth).withHeight(20));
-    decaySlider.setBounds(sliderArea.removeFromLeft(sliderWidth).reduced(5, 20));
-    
-    sustainLabel.setBounds(sliderArea.removeFromLeft(sliderWidth).withHeight(20));
-    sustainSlider.setBounds(sliderArea.removeFromLeft(sliderWidth).reduced(5, 20));
-    
-    releaseLabel.setBounds(sliderArea.removeFromLeft(sliderWidth).withHeight(20));
-    releaseSlider.setBounds(sliderArea.reduced(5, 20));
+    return { params.begin(), params.end() };
+}
+
+void NekoSynthAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
+{
+    auto state = apvts.copyState();
+    std::unique_ptr<juce::XmlElement> xml(state.createXml());
+    copyXmlToBinary(*xml, destData);
+}
+
+void NekoSynthAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
+{
+    std::unique_ptr<juce::XmlElement> xml(getXmlFromBinary(data, sizeInBytes));
+    if (xml != nullptr)
+        apvts.replaceState(juce::ValueTree::fromXml(*xml));
+}
+
+juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
+{
+    return new NekoSynthAudioProcessor();
 }
