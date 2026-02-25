@@ -1,4 +1,4 @@
-name: Build NekoSynth (Windows)
+name: Build NekoSynth
 
 on:
   push:
@@ -17,14 +17,24 @@ jobs:
     - name: Clone JUCE
       run: git clone https://github.com/juce-framework/JUCE.git
     
-    - name: Configure
-      run: cmake -Bbuild -DCMAKE_BUILD_TYPE=Release
-  
-    - name: Build
-      run: cmake --build build --config Release
+    - name: Build Release
+      run: |
+        cmake -Bbuild-release -DCMAKE_BUILD_TYPE=Release
+        cmake --build build-release --config Release
     
-    - name: Upload VST3
+    - name: Build Debug (with logging)
+      run: |
+        cmake -Bbuild-debug -DCMAKE_BUILD_TYPE=Debug -DENABLE_DEBUG_LOGGING=ON
+        cmake --build build-debug --config Debug
+    
+    - name: Upload Release VST3
       uses: actions/upload-artifact@v4
       with:
-        name: NekoSynth
-        path: build/NekoSynth_artefacts/Release/VST3/NekoSynth.vst3
+        name: NekoSynth-Release
+        path: build-release/NekoSynth_artefacts/Release/VST3/NekoSynth.vst3
+    
+    - name: Upload Debug VST3
+      uses: actions/upload-artifact@v4
+      with:
+        name: NekoSynth-Debug
+        path: build-debug/NekoSynth_artefacts/Debug/VST3/NekoSynth.vst3
