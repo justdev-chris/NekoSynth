@@ -1,7 +1,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include <juce_audio_formats/juce_audio_formats.h>
 #include <cmath>
-#include <random>
 
 class NekoSynthAudioProcessor::NekoVoice : public juce::SynthesiserVoice
 {
@@ -23,7 +23,6 @@ public:
         level = velocity * 0.5;
         tailWagPhase = 0.0;
         
-        noteNumber = midiNoteNumber;
         baseFrequency = 440.0f * std::pow(2.0f, (midiNoteNumber - 69) / 12.0f);
         
         juce::ADSR::Parameters params;
@@ -66,6 +65,7 @@ public:
             float pitchMultiplier = 1.0f + pitchBend * 0.05f;
             float frequency = baseFrequency * pitchMultiplier;
             
+            // Animal pitch modulation
             if (*processor.catMode > 0.5f)
             {
                 float meowPhase = std::fmod(currentAngle * 0.2f, 1.0f);
@@ -91,24 +91,34 @@ public:
                 else
                     frequency *= 0.1f;
                 
-                float noise = (rand() % 1000) / 500.0f - 1.0f;
+                float noise = std::sin(currentAngle * 50.0f) * 0.5f;
                 frequency *= 1.0f + noise * 0.03f * (barkPhase < 0.3f ? 1.0f : 0.0f);
             }
             
+            // Waveform selection
             float sample = 0.0f;
+            int waveType = (int)*processor.waveform;
             
             if (*processor.catMode > 0.5f)
             {
+                // Cat mode uses sine-based
                 sample = std::sin(currentAngle);
-                sample += std::sin(currentAngle * 2.0f) * 0.3f;
-                sample += std::sin(currentAngle * 3.0f) * 0.1f;
-                sample /= 1.4f;
+                if (waveType == 1) // Add saw characteristics
+                    sample += std::sin(currentAngle * 2.0f) * 0.3f;
+                else if (waveType == 2) // Add square characteristics
+                    sample = sample > 0 ? 0.5f : -0.5f;
             }
             else
             {
+                // Dog mode uses saw-based
                 sample = 2.0f * (currentAngle / juce::MathConstants<float>::twoPi) - 1.0f;
-                sample += std::sin(currentAngle * 2.0f) * 0.5f;
-                sample = std::tanh(sample * 2.0f) * 0.5f;
+                
+                if (waveType == 0) // Make it more sine-like
+                    sample = std::sin(currentAngle);
+                else if (waveType == 2) // Square
+                    sample = sample > 0 ? 0.5f : -0.5f;
+                else // Saw
+                    sample = std::tanh(sample * 2.0f) * 0.5f;
             }
             
             float env = envelope.getNextSample();
@@ -139,16 +149,8 @@ private:
     double currentAngle = 0.0;
     double baseFrequency = 440.0;
     float level = 0.0;
-    int noteNumber = 60;
     float pitchBend = 0.0f;
     float tailWagPhase = 0.0f;
-};
-
-// DUMMY SOUND FIX - THIS IS THE IMPORTANT PART
-struct DummySound : public juce::SynthesiserSound
-{
-    bool appliesToNote(int) override { return true; }
-    bool appliesToChannel(int) override { return true; }
 };
 
 NekoSynthAudioProcessor::NekoSynthAudioProcessor()
@@ -162,12 +164,13 @@ NekoSynthAudioProcessor::NekoSynthAudioProcessor()
     decay = apvts.getRawParameterValue("decay");
     sustain = apvts.getRawParameterValue("sustain");
     release = apvts.getRawParameterValue("release");
+    waveform = apvts.getRawParameterValue("waveform");
     
     for (int i = 0; i < 8; ++i)
         synth.addVoice(new NekoVoice(*this));
     
-    // FIXED: Using DummySound instead of SamplerSound
-    synth.addSound(new DummySound());
+    auto* buffer = new juce::AudioSampleBuffer();
+    synth.addSound(new juce::SamplerSound("default", *buffer, 440, 0, 0, 0, 10.0));
 }
 
 NekoSynthAudioProcessor::~NekoSynthAudioProcessor()
@@ -217,6 +220,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout NekoSynthAudioProcessor::cre
     params.push_back(std::make_unique<juce::AudioParameterFloat>("sustain", "Sustain", 0.0f, 1.0f, 0.8f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("release", "Release", 0.0f, 5.0f, 0.2f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("volume", "Volume", 0.0f, 1.0f, 0.5f));
+    params.push_back(std::make_unique<juce::AudioParameterChoice>("waveform", "Waveform", 
+        juce::StringArray({ "Sine", "Saw", "Square" }), 0));
     
     return { params.begin(), params.end() };
 }
