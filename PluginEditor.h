@@ -19,6 +19,8 @@ private:
     juce::TextButton catButton;
     juce::TextButton dogButton;
     
+    juce::ComboBox waveformSelector;
+    
     juce::Slider volumeSlider;
     juce::Slider attackSlider;
     juce::Slider decaySlider;
@@ -30,9 +32,11 @@ private:
     juce::Label decayLabel;
     juce::Label sustainLabel;
     juce::Label releaseLabel;
+    juce::Label waveformLabel;
     
     using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;
     using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
+    using ComboAttachment = juce::AudioProcessorValueTreeState::ComboBoxAttachment;
     
     std::unique_ptr<ButtonAttachment> catAttachment;
     std::unique_ptr<ButtonAttachment> dogAttachment;
@@ -41,6 +45,7 @@ private:
     std::unique_ptr<SliderAttachment> decayAttachment;
     std::unique_ptr<SliderAttachment> sustainAttachment;
     std::unique_ptr<SliderAttachment> releaseAttachment;
+    std::unique_ptr<ComboAttachment> waveformAttachment;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NekoSynthAudioProcessorEditor)
 };
