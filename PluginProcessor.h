@@ -46,6 +46,7 @@ public:
     std::atomic<float>* decay = nullptr;
     std::atomic<float>* sustain = nullptr;
     std::atomic<float>* release = nullptr;
+    std::atomic<float>* waveform = nullptr;  // 0=sine, 1=saw, 2=square
 
 private:
     class NekoVoice;
