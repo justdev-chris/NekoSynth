@@ -1,6 +1,6 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
-#include "DebugLogger.h"
+#include <juce_audio_formats/juce_audio_formats.h>
 #include <cmath>
 #include <random>
 
@@ -24,7 +24,6 @@ public:
         level = velocity * 0.5;
         tailWagPhase = 0.0;
         
-        noteNumber = midiNoteNumber;
         baseFrequency = 440.0f * std::pow(2.0f, (midiNoteNumber - 69) / 12.0f);
         
         juce::ADSR::Parameters params;
@@ -35,8 +34,6 @@ public:
         envelope.setParameters(params);
         
         envelope.noteOn();
-        
-        DEBUG_LOG("Note started: " + std::to_string(midiNoteNumber));
     }
     
     void stopNote(float, bool allowTailOff) override
@@ -50,7 +47,6 @@ public:
             clearCurrentNote();
             envelope.reset();
         }
-        DEBUG_LOG("Note stopped");
     }
     
     void pitchWheelMoved(int newValue) override
@@ -70,6 +66,7 @@ public:
             float pitchMultiplier = 1.0f + pitchBend * 0.05f;
             float frequency = baseFrequency * pitchMultiplier;
             
+            // COMPLEX MEOW SOUND (actual cat-like)
             if (*processor.catMode > 0.5f)
             {
                 float meowPhase = std::fmod(currentAngle * 0.2f, 1.0f);
@@ -84,6 +81,7 @@ public:
                 frequency *= 1.0f + std::sin(currentAngle * 5.0f) * 0.02f;
             }
             
+            // COMPLEX BARK SOUND (actual dog-like, NO RAND())
             if (*processor.dogMode > 0.5f)
             {
                 float barkPhase = std::fmod(currentAngle * 0.5f, 1.0f);
@@ -95,7 +93,8 @@ public:
                 else
                     frequency *= 0.1f;
                 
-                float noise = (rand() % 1000) / 500.0f - 1.0f;
+                // REPLACED RAND() WITH SIN LFO - SAFE FOR AUDIO THREAD
+                float noise = std::sin(currentAngle * 50.0f) * 0.5f;
                 frequency *= 1.0f + noise * 0.03f * (barkPhase < 0.3f ? 1.0f : 0.0f);
             }
             
@@ -143,62 +142,35 @@ private:
     double currentAngle = 0.0;
     double baseFrequency = 440.0;
     float level = 0.0;
-    int noteNumber = 60;
     float pitchBend = 0.0f;
     float tailWagPhase = 0.0f;
-};
-
-struct DummySound : public juce::SynthesiserSound
-{
-    bool appliesToNote(int) override { return true; }
-    bool appliesToChannel(int) override { return true; }
 };
 
 NekoSynthAudioProcessor::NekoSynthAudioProcessor()
     : AudioProcessor(BusesProperties().withOutput("Output", juce::AudioChannelSet::stereo(), true)),
       apvts(*this, nullptr, "Parameters", createParameters())
 {
-    DEBUG_LOG("=== NekoSynth Constructor Started ===");
+    catMode = apvts.getRawParameterValue("catMode");
+    dogMode = apvts.getRawParameterValue("dogMode");
+    volume = apvts.getRawParameterValue("volume");
+    attack = apvts.getRawParameterValue("attack");
+    decay = apvts.getRawParameterValue("decay");
+    sustain = apvts.getRawParameterValue("sustain");
+    release = apvts.getRawParameterValue("release");
     
-    try {
-        catMode = apvts.getRawParameterValue("catMode");
-        dogMode = apvts.getRawParameterValue("dogMode");
-        volume = apvts.getRawParameterValue("volume");
-        attack = apvts.getRawParameterValue("attack");
-        decay = apvts.getRawParameterValue("decay");
-        sustain = apvts.getRawParameterValue("sustain");
-        release = apvts.getRawParameterValue("release");
-        
-        DEBUG_LOG("Parameters initialized");
-        
-        for (int i = 0; i < 8; ++i) {
-            synth.addVoice(new NekoVoice(*this));
-            DEBUG_LOG("Added voice " + std::to_string(i));
-        }
-        
-        synth.addSound(new DummySound());
-        DEBUG_LOG("Added dummy sound");
-        
-        DEBUG_LOG("=== NekoSynth Constructor Finished Successfully ===");
-    }
-    catch (const std::exception& e) {
-        DEBUG_LOG("EXCEPTION in constructor: " + std::string(e.what()));
-    }
-    catch (...) {
-        DEBUG_LOG("UNKNOWN EXCEPTION in constructor");
-    }
+    for (int i = 0; i < 8; ++i)
+        synth.addVoice(new NekoVoice(*this));
+    
+    auto* buffer = new juce::AudioSampleBuffer();
+    synth.addSound(new juce::SamplerSound("default", *buffer, 440, 0, 0, 0, 10.0));
 }
 
 NekoSynthAudioProcessor::~NekoSynthAudioProcessor()
 {
-    DEBUG_LOG("Destructor called");
 }
 
 void NekoSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-    DEBUG_LOG("prepareToPlay started - SampleRate: " + std::to_string(sampleRate) + 
-              ", BlockSize: " + std::to_string(samplesPerBlock));
-    
     synth.setCurrentPlaybackSampleRate(sampleRate);
     
     for (int i = 0; i < synth.getNumVoices(); ++i)
@@ -206,29 +178,16 @@ void NekoSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlo
         if (auto* voice = dynamic_cast<NekoVoice*>(synth.getVoice(i)))
         {
             voice->envelope.setSampleRate(sampleRate);
-            DEBUG_LOG("Set sample rate for voice " + std::to_string(i));
         }
     }
-    
-    DEBUG_LOG("prepareToPlay finished");
 }
 
 void NekoSynthAudioProcessor::releaseResources()
 {
-    DEBUG_LOG("releaseResources called");
 }
 
 void NekoSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
-    static int callCount = 0;
-    callCount++;
-    
-    if (callCount % 1000 == 0) {  // Log every 1000th call
-        DEBUG_LOG("processBlock #" + std::to_string(callCount) + 
-                  " - Samples: " + std::to_string(buffer.getNumSamples()) +
-                  " Channels: " + std::to_string(buffer.getNumChannels()));
-    }
-    
     juce::ScopedNoDenormals noDenormals;
     
     for (int i = 0; i < buffer.getNumChannels(); ++i)
@@ -239,14 +198,11 @@ void NekoSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juc
 
 juce::AudioProcessorEditor* NekoSynthAudioProcessor::createEditor()
 {
-    DEBUG_LOG("createEditor called");
     return new NekoSynthAudioProcessorEditor(*this);
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout NekoSynthAudioProcessor::createParameters()
 {
-    DEBUG_LOG("createParameters started");
-    
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
     
     params.push_back(std::make_unique<juce::AudioParameterFloat>("catMode", "Cat Mode", 0.0f, 1.0f, 1.0f));
@@ -257,14 +213,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout NekoSynthAudioProcessor::cre
     params.push_back(std::make_unique<juce::AudioParameterFloat>("release", "Release", 0.0f, 5.0f, 0.2f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("volume", "Volume", 0.0f, 1.0f, 0.5f));
     
-    DEBUG_LOG("createParameters finished - created " + std::to_string(params.size()) + " params");
-    
     return { params.begin(), params.end() };
 }
 
 void NekoSynthAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
-    DEBUG_LOG("getStateInformation called");
     auto state = apvts.copyState();
     std::unique_ptr<juce::XmlElement> xml(state.createXml());
     copyXmlToBinary(*xml, destData);
@@ -272,7 +225,6 @@ void NekoSynthAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 
 void NekoSynthAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
-    DEBUG_LOG("setStateInformation called - size: " + std::to_string(sizeInBytes));
     std::unique_ptr<juce::XmlElement> xml(getXmlFromBinary(data, sizeInBytes));
     if (xml != nullptr)
         apvts.replaceState(juce::ValueTree::fromXml(*xml));
@@ -280,6 +232,5 @@ void NekoSynthAudioProcessor::setStateInformation(const void* data, int sizeInBy
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
-    DEBUG_LOG("createPluginFilter called");
     return new NekoSynthAudioProcessor();
 }
