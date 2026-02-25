@@ -3,7 +3,6 @@
 #include <cmath>
 #include <random>
 
-//==============================================================================
 class NekoSynthAudioProcessor::NekoVoice : public juce::SynthesiserVoice
 {
 public:
@@ -69,23 +68,31 @@ public:
             
             if (*processor.catMode > 0.5f)
             {
-                float sweep = std::sin(currentAngle * 0.5f) * 0.1f;
-                frequency *= 1.0f + sweep;
+                float meowPhase = std::fmod(currentAngle * 0.2f, 1.0f);
                 
-                if (tailWagPhase < 1000.0f)
-                {
-                    frequency *= 1.0f + (tailWagPhase / 1000.0f) * 0.2f;
-                    tailWagPhase++;
-                }
+                if (meowPhase < 0.3f)
+                    frequency *= 1.0f + (meowPhase / 0.3f) * 0.4f;
+                else if (meowPhase < 0.7f)
+                    frequency *= 1.4f - ((meowPhase - 0.3f) / 0.4f) * 0.4f;
+                else
+                    frequency *= 1.0f + std::sin(meowPhase * 10.0f) * 0.05f;
+                
+                frequency *= 1.0f + std::sin(currentAngle * 5.0f) * 0.02f;
             }
             
             if (*processor.dogMode > 0.5f)
             {
-                float barkPhase = std::fmod(currentAngle * 2.0f, 1.0f);
+                float barkPhase = std::fmod(currentAngle * 0.5f, 1.0f);
+                
                 if (barkPhase < 0.1f)
-                {
-                    frequency *= 1.0f + std::sin(barkPhase * 31.4f) * 0.3f;
-                }
+                    frequency *= 1.0f + std::sin(barkPhase * 31.4f) * 0.2f;
+                else if (barkPhase < 0.3f)
+                    frequency *= 0.9f + std::cos(barkPhase * 15.7f) * 0.1f;
+                else
+                    frequency *= 0.1f;
+                
+                float noise = (rand() % 1000) / 500.0f - 1.0f;
+                frequency *= 1.0f + noise * 0.03f * (barkPhase < 0.3f ? 1.0f : 0.0f);
             }
             
             float sample = 0.0f;
@@ -137,14 +144,12 @@ private:
     float tailWagPhase = 0.0f;
 };
 
-//==============================================================================
 struct DummySound : public juce::SynthesiserSound
 {
     bool appliesToNote(int) override { return true; }
     bool appliesToChannel(int) override { return true; }
 };
 
-//==============================================================================
 NekoSynthAudioProcessor::NekoSynthAudioProcessor()
     : AudioProcessor(BusesProperties().withOutput("Output", juce::AudioChannelSet::stereo(), true)),
       apvts(*this, nullptr, "Parameters", createParameters())
@@ -167,7 +172,6 @@ NekoSynthAudioProcessor::~NekoSynthAudioProcessor()
 {
 }
 
-//==============================================================================
 void NekoSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     synth.setCurrentPlaybackSampleRate(sampleRate);
@@ -195,13 +199,11 @@ void NekoSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juc
     synth.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
 }
 
-//==============================================================================
 juce::AudioProcessorEditor* NekoSynthAudioProcessor::createEditor()
 {
     return new NekoSynthAudioProcessorEditor(*this);
 }
 
-//==============================================================================
 juce::AudioProcessorValueTreeState::ParameterLayout NekoSynthAudioProcessor::createParameters()
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
@@ -231,7 +233,6 @@ void NekoSynthAudioProcessor::setStateInformation(const void* data, int sizeInBy
         apvts.replaceState(juce::ValueTree::fromXml(*xml));
 }
 
-//==============================================================================
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new NekoSynthAudioProcessor();
