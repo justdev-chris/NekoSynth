@@ -153,6 +153,13 @@ private:
     float tailWagPhase = 0.0f;
 };
 
+// DUMMY SOUND CLASS - FIXED
+struct DummySound : public juce::SynthesiserSound
+{
+    bool appliesToNote(int) override { return true; }
+    bool appliesToChannel(int) override { return true; }
+};
+
 NekoSynthAudioProcessor::NekoSynthAudioProcessor()
     : AudioProcessor(BusesProperties().withOutput("Output", juce::AudioChannelSet::stereo(), true)),
       apvts(*this, nullptr, "Parameters", createParameters())
@@ -169,8 +176,8 @@ NekoSynthAudioProcessor::NekoSynthAudioProcessor()
     for (int i = 0; i < 8; ++i)
         synth.addVoice(new NekoVoice(*this));
     
-    auto* buffer = new juce::AudioSampleBuffer();
-    synth.addSound(new juce::SamplerSound("default", *buffer, 440, 0, 0, 0, 10.0));
+    // FIXED: Using DummySound instead of SamplerSound
+    synth.addSound(new DummySound());
 }
 
 NekoSynthAudioProcessor::~NekoSynthAudioProcessor()
