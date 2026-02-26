@@ -12,12 +12,9 @@ public:
     {
         envelope.setSampleRate(44100.0);
         
-        // Initialize filters for each voice
-        for (auto& filter : leftFilters)
-            filter.reset(new juce::dsp::ProcessorDuplicator<juce::dsp::StateVariableFilter::Filter<float>>);
-        
-        for (auto& filter : rightFilters)
-            filter.reset(new juce::dsp::ProcessorDuplicator<juce::dsp::StateVariableFilter::Filter<float>>);
+        // Initialize filters
+        leftFilter.reset();
+        rightFilter.reset();
     }
     
     bool canPlaySound(juce::SynthesiserSound* sound) override
@@ -31,11 +28,10 @@ public:
         currentAngle = 0.0;
         level = velocity * 0.5;
         
-        // Store base frequency
         baseFrequency = 440.0f * std::pow(2.0f, (midiNoteNumber - 69) / 12.0f);
         
-        // Randomize phases for unison voices
-        for (int i = 0; i < maxUnisonVoices; ++i)
+        // Randomize phases for unison
+        for (int i = 0; i < 8; ++i)
         {
             unisonAngles[i] = (double)rand() / RAND_MAX * juce::MathConstants<double>::twoPi;
         }
@@ -74,17 +70,14 @@ public:
     {
         juce::SynthesiserVoice::setCurrentPlaybackSampleRate(newRate);
         
-        // Update filters with new sample rate
+        // Prepare filters
         juce::dsp::ProcessSpec spec;
         spec.sampleRate = newRate;
         spec.maximumBlockSize = 512;
         spec.numChannels = 1;
         
-        for (auto& filter : leftFilters)
-            filter->prepare(spec);
-        
-        for (auto& filter : rightFilters)
-            filter->prepare(spec);
+        leftFilter.prepare(spec);
+        rightFilter.prepare(spec);
     }
     
     void renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int startSample, int numSamples) override
@@ -92,22 +85,19 @@ public:
         if (!isVoiceActive())
             return;
         
-        // Get parameters
         float pitchRange = *processor.pitchBendRange;
         int numVoices = (int)*processor.voiceCount;
         float detuneAmount = *processor.detune;
         float cutoff = *processor.filterCutoff;
         float resonance = *processor.filterRes;
         
-        // Update filter coefficients
         updateFilters(cutoff, resonance);
         
         while (--numSamples >= 0)
         {
-            float pitchMultiplier = 1.0f + pitchBend * pitchRange * 0.01f; // Pitch range in semitones
+            float pitchMultiplier = 1.0f + pitchBend * pitchRange * 0.01f;
             float frequency = baseFrequency * pitchMultiplier;
             
-            // Animal pitch modulation
             if (*processor.catMode > 0.5f)
             {
                 float meowPhase = std::fmod(currentAngle * 0.2f, 1.0f);
@@ -137,16 +127,12 @@ public:
                 frequency *= 1.0f + noise * 0.03f * (barkPhase < 0.3f ? 1.0f : 0.0f);
             }
             
-            // Generate sample with unison
             float sample = 0.0f;
             int waveType = (int)*processor.waveform;
             
             for (int v = 0; v < numVoices; ++v)
             {
                 float detuneFactor = 1.0f + (v - (numVoices-1)/2.0f) * detuneAmount * 0.001f;
-                float voiceFreq = frequency * detuneFactor;
-                
-                // Use different phases for each voice
                 double angle = currentAngle * detuneFactor + unisonAngles[v];
                 
                 float voiceSample;
@@ -159,9 +145,8 @@ public:
                 
                 sample += voiceSample;
             }
-            sample /= (float)numVoices; // Normalize
+            sample /= (float)numVoices;
             
-            // Apply animal-specific coloring
             if (*processor.catMode > 0.5f)
             {
                 sample += std::sin(currentAngle * 2.0f) * 0.2f;
@@ -174,24 +159,16 @@ public:
             float env = envelope.getNextSample();
             sample *= level * env * *processor.volume;
             
-            // Apply filter to each channel
-            float leftSample = sample;
-            float rightSample = sample;
+            // Apply filters
+            float leftSample = leftFilter.processSample(sample);
+            float rightSample = rightFilter.processSample(sample);
             
-            for (int v = 0; v < numVoices; ++v)
-            {
-                leftSample = leftFilters[v]->processSample(leftSample);
-                rightSample = rightFilters[v]->processSample(rightSample);
-            }
-            
-            // Output to both channels
             for (int channel = 0; channel < outputBuffer.getNumChannels(); ++channel)
             {
                 float outSample = (channel == 0) ? leftSample : rightSample;
                 outputBuffer.addSample(channel, startSample, outSample * 0.7f);
             }
             
-            // Update angle for next sample
             currentAngle += frequency * 2.0 * juce::MathConstants<double>::pi / getSampleRate();
             if (currentAngle >= juce::MathConstants<double>::twoPi)
                 currentAngle -= juce::MathConstants<double>::twoPi;
@@ -205,17 +182,11 @@ public:
     
     void updateFilters(float cutoff, float resonance)
     {
-        for (auto& filter : leftFilters)
-        {
-            *filter->state = *juce::dsp::IIR::Coefficients<float>::makeLowPass(
-                getSampleRate(), cutoff * 1000.0f, resonance);
-        }
+        *leftFilter.state = *juce::dsp::IIR::Coefficients<float>::makeLowPass(
+            getSampleRate(), cutoff * 1000.0f, resonance);
         
-        for (auto& filter : rightFilters)
-        {
-            *filter->state = *juce::dsp::IIR::Coefficients<float>::makeLowPass(
-                getSampleRate(), cutoff * 1000.0f, resonance);
-        }
+        *rightFilter.state = *juce::dsp::IIR::Coefficients<float>::makeLowPass(
+            getSampleRate(), cutoff * 1000.0f, resonance);
     }
     
     juce::ADSR envelope;
@@ -228,12 +199,11 @@ private:
     float level = 0.0;
     float pitchBend = 0.0f;
     
-    static constexpr int maxUnisonVoices = 8;
-    double unisonAngles[maxUnisonVoices] = { 0.0 };
+    double unisonAngles[8] = { 0.0 };
     
-    // Per-voice filters for stereo
-    std::unique_ptr<juce::dsp::ProcessorDuplicator<juce::dsp::StateVariableFilter::Filter<float>>> leftFilters[maxUnisonVoices];
-    std::unique_ptr<juce::dsp::ProcessorDuplicator<juce::dsp::StateVariableFilter::Filter<float>>> rightFilters[maxUnisonVoices];
+    // FIXED: Simple filters, no templates
+    juce::dsp::StateVariableFilter::Filter<float> leftFilter;
+    juce::dsp::StateVariableFilter::Filter<float> rightFilter;
 };
 
 //==============================================================================
@@ -257,7 +227,6 @@ NekoSynthAudioProcessor::NekoSynthAudioProcessor()
     release = apvts.getRawParameterValue("release");
     waveform = apvts.getRawParameterValue("waveform");
     
-    // New parameters
     pitchBendRange = apvts.getRawParameterValue("pitchBendRange");
     filterCutoff = apvts.getRawParameterValue("filterCutoff");
     filterRes = apvts.getRawParameterValue("filterRes");
@@ -301,7 +270,6 @@ void NekoSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juc
     
     synth.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
     
-    // Update level meter (simple peak)
     float level = 0.0f;
     for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
     {
@@ -322,7 +290,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout NekoSynthAudioProcessor::cre
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
     
-    // Existing parameters
     params.push_back(std::make_unique<juce::AudioParameterFloat>("catMode", "Cat Mode", 0.0f, 1.0f, 1.0f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("dogMode", "Dog Mode", 0.0f, 1.0f, 0.0f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("attack", "Attack", 0.0f, 5.0f, 0.1f));
@@ -333,24 +300,18 @@ juce::AudioProcessorValueTreeState::ParameterLayout NekoSynthAudioProcessor::cre
     params.push_back(std::make_unique<juce::AudioParameterChoice>("waveform", "Waveform", 
         juce::StringArray({ "Sine", "Saw", "Square" }), 0));
     
-    // NEW PARAMETERS
-    // 1. Pitch Bend Range (0-24 semitones)
     params.push_back(std::make_unique<juce::AudioParameterFloat>("pitchBendRange", "Pitch Range", 
         0.0f, 24.0f, 2.0f));
     
-    // 2. Filter Cutoff (20Hz - 20kHz)
     params.push_back(std::make_unique<juce::AudioParameterFloat>("filterCutoff", "Cutoff", 
-        0.02f, 20.0f, 20.0f)); // In kHz for nicer UI numbers
+        0.02f, 20.0f, 20.0f));
     
-    // 2. Filter Resonance (0.1 - 10)
     params.push_back(std::make_unique<juce::AudioParameterFloat>("filterRes", "Resonance", 
         0.1f, 10.0f, 0.7f));
     
-    // 5. Detune amount (0-50 cents)
     params.push_back(std::make_unique<juce::AudioParameterFloat>("detune", "Detune", 
         0.0f, 50.0f, 5.0f));
     
-    // 5. Number of unison voices (1-8)
     params.push_back(std::make_unique<juce::AudioParameterChoice>("voiceCount", "Voices", 
         juce::StringArray({ "1", "2", "3", "4", "5", "6", "7", "8" }), 0));
     
