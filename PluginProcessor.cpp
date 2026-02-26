@@ -159,9 +159,9 @@ public:
             float env = envelope.getNextSample();
             sample *= level * env * *processor.volume;
             
-            // Apply filters using StateVariableTPTFilter (processSample takes just the sample)
-            float leftSample = leftFilter.processSample(sample);
-            float rightSample = rightFilter.processSample(sample);
+            // Apply filters - processSample needs channel index
+            float leftSample = leftFilter.processSample(0, sample);  // channel 0
+            float rightSample = rightFilter.processSample(0, sample); // channel 0 (mono filter)
             
             for (int channel = 0; channel < outputBuffer.getNumChannels(); ++channel)
             {
@@ -206,7 +206,7 @@ private:
     
     double unisonAngles[8] = { 0.0 };
     
-    // Using the recommended StateVariableTPTFilter (not the deprecated StateVariableFilter)
+    // Using the recommended StateVariableTPTFilter
     juce::dsp::StateVariableTPTFilter<float> leftFilter;
     juce::dsp::StateVariableTPTFilter<float> rightFilter;
 };
