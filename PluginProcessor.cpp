@@ -1,6 +1,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include <juce_audio_formats/juce_audio_formats.h>
+#include <juce_dsp/juce_dsp.h>
 #include <cmath>
 #include <random>
 
@@ -181,13 +182,13 @@ public:
     }
     
     void updateFilters(float cutoff, float resonance)
-    {
-        *leftFilter.state = *juce::dsp::IIR::Coefficients<float>::makeLowPass(
-            getSampleRate(), cutoff * 1000.0f, resonance);
-        
-        *rightFilter.state = *juce::dsp::IIR::Coefficients<float>::makeLowPass(
-            getSampleRate(), cutoff * 1000.0f, resonance);
-    }
+{
+    auto coeffs = juce::dsp::IIR::Coefficients<float>::makeLowPass(
+        getSampleRate(), cutoff * 1000.0f, resonance);
+    
+    leftFilter.coefficients = coeffs;
+    rightFilter.coefficients = coeffs;
+}
     
     juce::ADSR envelope;
 
