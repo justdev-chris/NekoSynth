@@ -12,7 +12,7 @@ public:
     {
         envelope.setSampleRate(44100.0);
         
-        // Initialize filters
+        // Initialize filters (using non-deprecated TPT filter)
         leftFilter.reset();
         rightFilter.reset();
     }
@@ -159,7 +159,7 @@ public:
             float env = envelope.getNextSample();
             sample *= level * env * *processor.volume;
             
-            // Apply filters for JUCE 8 - processSample takes just the sample
+            // Apply filters using StateVariableTPTFilter (processSample takes just the sample)
             float leftSample = leftFilter.processSample(sample);
             float rightSample = rightFilter.processSample(sample);
             
@@ -183,16 +183,15 @@ public:
     void updateFilters(float cutoff, float resonance)
     {
         auto cutoffFreq = cutoff * 1000.0f;
-        auto sampleRate = getSampleRate();
         
-        // JUCE 8.0.12 correct syntax for StateVariableFilter
-        juce::dsp::StateVariableFilter::Parameters<float> params;
-        params.type = juce::dsp::StateVariableFilter::Parameters<float>::Type::lowPass;
-        params.setCutOffFrequency(sampleRate, cutoffFreq, resonance);
+        // Using the recommended StateVariableTPTFilter API
+        leftFilter.setCutoffFrequency(cutoffFreq);
+        leftFilter.setResonance(resonance);
+        leftFilter.setType(juce::dsp::StateVariableTPTFilterType::lowpass);
         
-        // Assign parameters to filter state
-        leftFilter.state = params;
-        rightFilter.state = params;
+        rightFilter.setCutoffFrequency(cutoffFreq);
+        rightFilter.setResonance(resonance);
+        rightFilter.setType(juce::dsp::StateVariableTPTFilterType::lowpass);
     }
     
     juce::ADSR envelope;
@@ -207,9 +206,9 @@ private:
     
     double unisonAngles[8] = { 0.0 };
     
-    // Filters for JUCE 8
-    juce::dsp::StateVariableFilter::Filter<float> leftFilter;
-    juce::dsp::StateVariableFilter::Filter<float> rightFilter;
+    // Using the recommended StateVariableTPTFilter (not the deprecated StateVariableFilter)
+    juce::dsp::StateVariableTPTFilter<float> leftFilter;
+    juce::dsp::StateVariableTPTFilter<float> rightFilter;
 };
 
 //==============================================================================
