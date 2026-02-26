@@ -4,7 +4,6 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "PluginProcessor.h"
 
-// FIXED: Added Timer inheritance
 class NekoSynthAudioProcessorEditor : public juce::AudioProcessorEditor,
                                       private juce::Timer
 {
@@ -14,7 +13,7 @@ public:
 
     void paint(juce::Graphics&) override;
     void resized() override;
-    void timerCallback() override;  // FIXED: Added override
+    void timerCallback() override;
 
 private:
     NekoSynthAudioProcessor& audioProcessor;
@@ -63,7 +62,6 @@ private:
     using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
     using ComboAttachment = juce::AudioProcessorValueTreeState::ComboBoxAttachment;
     
-    // Attachments
     std::unique_ptr<ButtonAttachment> catAttachment;
     std::unique_ptr<ButtonAttachment> dogAttachment;
     std::unique_ptr<SliderAttachment> volumeAttachment;
@@ -72,8 +70,6 @@ private:
     std::unique_ptr<SliderAttachment> sustainAttachment;
     std::unique_ptr<SliderAttachment> releaseAttachment;
     std::unique_ptr<ComboAttachment> waveformAttachment;
-    
-    // New attachments
     std::unique_ptr<SliderAttachment> pitchRangeAttachment;
     std::unique_ptr<SliderAttachment> filterCutoffAttachment;
     std::unique_ptr<SliderAttachment> filterResAttachment;
