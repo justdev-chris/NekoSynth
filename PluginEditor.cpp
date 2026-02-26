@@ -42,10 +42,14 @@ NekoSynthAudioProcessorEditor::NekoSynthAudioProcessorEditor(NekoSynthAudioProce
     auto setupSlider = [](juce::Slider& slider, juce::Colour thumbColour)
     {
         slider.setSliderStyle(juce::Slider::LinearVertical);
-        slider.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
+        slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 20);
+        slider.setNumDecimalPlacesToDisplay(2);
         slider.setColour(juce::Slider::trackColourId, juce::Colour::fromRGB(60, 60, 70));
         slider.setColour(juce::Slider::thumbColourId, thumbColour);
         slider.setColour(juce::Slider::backgroundColourId, juce::Colour::fromRGB(30, 30, 35));
+        slider.setColour(juce::Slider::textBoxTextColourId, juce::Colours::white);
+        slider.setColour(juce::Slider::textBoxBackgroundColourId, juce::Colour::fromRGB(20, 20, 25));
+        slider.setColour(juce::Slider::textBoxOutlineColourId, juce::Colour::fromRGB(60, 60, 70));
     };
     
     // ===== ADSR + VOLUME SLIDERS =====
@@ -100,7 +104,7 @@ NekoSynthAudioProcessorEditor::NekoSynthAudioProcessorEditor(NekoSynthAudioProce
     voiceCountCombo.addItem("6", 6);
     voiceCountCombo.addItem("7", 7);
     voiceCountCombo.addItem("8", 8);
-    voiceCountCombo.setSelectedId(1);
+    voiceCountCombo.setSelectedId(4); // Default to 4 voices
     voiceCountCombo.setColour(juce::ComboBox::backgroundColourId, juce::Colour::fromRGB(20, 20, 25));
     voiceCountCombo.setColour(juce::ComboBox::textColourId, juce::Colours::white);
     voiceCountCombo.setColour(juce::ComboBox::outlineColourId, juce::Colour::fromRGB(60, 60, 70));
@@ -240,43 +244,43 @@ void NekoSynthAudioProcessorEditor::resized()
     auto leftSection = area.removeFromLeft(area.getWidth() / 2 - 15);
     auto rightSection = area;
     
-    auto adsrRow = leftSection.removeFromTop(180);
+    auto adsrRow = leftSection.removeFromTop(200); // Made taller for text boxes
     int sliderWidth = adsrRow.getWidth() / 5;
     
     auto volArea = adsrRow.removeFromLeft(sliderWidth);
-    volumeSlider.setBounds(volArea.reduced(5, 20));
+    volumeSlider.setBounds(volArea.reduced(5, 5));
     volumeLabel.setBounds(volArea.removeFromBottom(20));
     
     auto attArea = adsrRow.removeFromLeft(sliderWidth);
-    attackSlider.setBounds(attArea.reduced(5, 20));
+    attackSlider.setBounds(attArea.reduced(5, 5));
     attackLabel.setBounds(attArea.removeFromBottom(20));
     
     auto decArea = adsrRow.removeFromLeft(sliderWidth);
-    decaySlider.setBounds(decArea.reduced(5, 20));
+    decaySlider.setBounds(decArea.reduced(5, 5));
     decayLabel.setBounds(decArea.removeFromBottom(20));
     
     auto susArea = adsrRow.removeFromLeft(sliderWidth);
-    sustainSlider.setBounds(susArea.reduced(5, 20));
+    sustainSlider.setBounds(susArea.reduced(5, 5));
     sustainLabel.setBounds(susArea.removeFromBottom(20));
     
     auto relArea = adsrRow.removeFromLeft(sliderWidth);
-    releaseSlider.setBounds(relArea.reduced(5, 20));
+    releaseSlider.setBounds(relArea.reduced(5, 5));
     releaseLabel.setBounds(relArea.removeFromBottom(20));
     
-    auto pitchArea = rightSection.removeFromTop(60);
-    pitchRangeSlider.setBounds(pitchArea.removeFromLeft(60).reduced(5, 10));
+    auto pitchArea = rightSection.removeFromTop(80);
+    pitchRangeSlider.setBounds(pitchArea.removeFromLeft(80).reduced(5, 5));
     pitchRangeLabel.setBounds(pitchArea);
     
-    auto filterArea = rightSection.removeFromTop(60);
-    filterCutoffSlider.setBounds(filterArea.removeFromLeft(60).reduced(5, 10));
+    auto filterArea = rightSection.removeFromTop(80);
+    filterCutoffSlider.setBounds(filterArea.removeFromLeft(80).reduced(5, 5));
     filterCutoffLabel.setBounds(filterArea.removeFromLeft(60));
-    filterResSlider.setBounds(filterArea.removeFromLeft(60).reduced(5, 10));
+    filterResSlider.setBounds(filterArea.removeFromLeft(80).reduced(5, 5));
     filterResLabel.setBounds(filterArea);
     
-    auto unisonArea = rightSection.removeFromTop(80);
-    detuneSlider.setBounds(unisonArea.removeFromLeft(60).reduced(5, 15));
+    auto unisonArea = rightSection.removeFromTop(100);
+    detuneSlider.setBounds(unisonArea.removeFromLeft(80).reduced(5, 5));
     detuneLabel.setBounds(unisonArea.removeFromLeft(60));
-    voiceCountCombo.setBounds(unisonArea.removeFromLeft(80).reduced(5, 20));
+    voiceCountCombo.setBounds(unisonArea.removeFromLeft(100).reduced(5, 15));
     voiceCountLabel.setBounds(unisonArea);
     
     meterLabel.setBounds(rightSection.getWidth() - 150, rightSection.getHeight() - 30, 150, 20);
