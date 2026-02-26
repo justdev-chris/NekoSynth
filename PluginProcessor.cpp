@@ -159,7 +159,7 @@ public:
             float env = envelope.getNextSample();
             sample *= level * env * *processor.volume;
             
-            // Apply filters for JUCE 8 - processSample takes just the sample, no channel index
+            // Apply filters for JUCE 8 - processSample takes just the sample
             float leftSample = leftFilter.processSample(sample);
             float rightSample = rightFilter.processSample(sample);
             
@@ -185,16 +185,14 @@ public:
         auto cutoffFreq = cutoff * 1000.0f;
         auto sampleRate = getSampleRate();
         
-        // JUCE 8.0.12 syntax for StateVariableFilter
-        // Create parameters and set them directly on the filter
+        // JUCE 8.0.12 correct syntax for StateVariableFilter
         juce::dsp::StateVariableFilter::Parameters<float> params;
-        params.type = juce::dsp::StateVariableFilter::StateVariableFilterType::lowpass;
+        params.type = juce::dsp::StateVariableFilter::Parameters<float>::Type::lowPass;
         params.setCutOffFrequency(sampleRate, cutoffFreq, resonance);
         
-        // For JUCE 8, we need to set the parameters differently
-        // This might be the correct approach
-        leftFilter.setParameters(params);
-        rightFilter.setParameters(params);
+        // Assign parameters to filter state
+        leftFilter.state = params;
+        rightFilter.state = params;
     }
     
     juce::ADSR envelope;
@@ -209,7 +207,7 @@ private:
     
     double unisonAngles[8] = { 0.0 };
     
-    // Simple filters for JUCE 8
+    // Filters for JUCE 8
     juce::dsp::StateVariableFilter::Filter<float> leftFilter;
     juce::dsp::StateVariableFilter::Filter<float> rightFilter;
 };
