@@ -4,7 +4,9 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "PluginProcessor.h"
 
-class NekoSynthAudioProcessorEditor : public juce::AudioProcessorEditor
+// FIXED: Added Timer inheritance
+class NekoSynthAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                      private juce::Timer
 {
 public:
     NekoSynthAudioProcessorEditor(NekoSynthAudioProcessor&);
@@ -12,7 +14,7 @@ public:
 
     void paint(juce::Graphics&) override;
     void resized() override;
-    void timerCallback();
+    void timerCallback() override;  // FIXED: Added override
 
 private:
     NekoSynthAudioProcessor& audioProcessor;
@@ -38,24 +40,23 @@ private:
     juce::Label sustainLabel;
     juce::Label releaseLabel;
     
-    // NEW CONTROLS
-    // 1. Pitch Bend Range
+    // Pitch Bend Range
     juce::Slider pitchRangeSlider;
     juce::Label pitchRangeLabel;
     
-    // 2. Filter controls
+    // Filter controls
     juce::Slider filterCutoffSlider;
     juce::Slider filterResSlider;
     juce::Label filterCutoffLabel;
     juce::Label filterResLabel;
     
-    // 5. Unison controls
+    // Unison controls
     juce::Slider detuneSlider;
     juce::ComboBox voiceCountCombo;
     juce::Label detuneLabel;
     juce::Label voiceCountLabel;
     
-    // 7. Level meter
+    // Level meter
     juce::Label meterLabel;
     
     using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;
