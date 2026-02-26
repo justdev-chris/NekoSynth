@@ -4,6 +4,7 @@
 #include <juce_audio_plugin_client/juce_audio_plugin_client.h>
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_audio_utils/juce_audio_utils.h>
+#include <juce_dsp/juce_dsp.h>
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <juce_graphics/juce_graphics.h>
 #include <juce_data_structures/juce_data_structures.h>
@@ -39,6 +40,7 @@ public:
 
     juce::AudioProcessorValueTreeState apvts;
     
+    // Existing parameters
     std::atomic<float>* catMode = nullptr;
     std::atomic<float>* dogMode = nullptr;
     std::atomic<float>* volume = nullptr;
@@ -46,14 +48,28 @@ public:
     std::atomic<float>* decay = nullptr;
     std::atomic<float>* sustain = nullptr;
     std::atomic<float>* release = nullptr;
-    std::atomic<float>* waveform = nullptr;  // 0=sine, 1=saw, 2=square
+    std::atomic<float>* waveform = nullptr;
+    
+    // NEW PARAMETERS
+    std::atomic<float>* pitchBendRange = nullptr;  // 1. Pitch bend range
+    std::atomic<float>* filterCutoff = nullptr;    // 2. Low-pass filter cutoff
+    std::atomic<float>* filterRes = nullptr;        // 2. Filter resonance
+    std::atomic<float>* detune = nullptr;           // 5. Unison detune
+    std::atomic<float>* voiceCount = nullptr;       // 5. Number of unison voices
 
 private:
     class NekoVoice;
     
     juce::Synthesiser synth;
     
+    // For level meter
+    std::atomic<float> currentLevel { 0.0f };
+    
     juce::AudioProcessorValueTreeState::ParameterLayout createParameters();
     
+public:
+    float getCurrentLevel() const { return currentLevel.load(); }
+
+private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NekoSynthAudioProcessor)
 };
