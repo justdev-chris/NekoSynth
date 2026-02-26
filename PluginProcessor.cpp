@@ -70,7 +70,7 @@ public:
     {
         juce::SynthesiserVoice::setCurrentPlaybackSampleRate(newRate);
         
-        // Prepare filters
+        // Prepare filters for JUCE 8
         juce::dsp::ProcessSpec spec;
         spec.sampleRate = newRate;
         spec.maximumBlockSize = 512;
@@ -159,9 +159,9 @@ public:
             float env = envelope.getNextSample();
             sample *= level * env * *processor.volume;
             
-            // Apply filters
-            float leftSample = leftFilter.processSample(sample);
-            float rightSample = rightFilter.processSample(sample);
+            // Apply filters for JUCE 8
+            float leftSample = leftFilter.processSample(0, sample);
+            float rightSample = rightFilter.processSample(0, sample);
             
             for (int channel = 0; channel < outputBuffer.getNumChannels(); ++channel)
             {
@@ -181,15 +181,17 @@ public:
     }
     
     void updateFilters(float cutoff, float resonance)
-{
-    leftFilter.setType(juce::dsp::StateVariableFilter::Filter<float>::Type::lowPass);
-    leftFilter.setCutoffFrequency(getSampleRate(), cutoff * 1000.0f);
-    leftFilter.setResonance(resonance);
-    
-    rightFilter.setType(juce::dsp::StateVariableFilter::Filter<float>::Type::lowPass);
-    rightFilter.setCutoffFrequency(getSampleRate(), cutoff * 1000.0f);
-    rightFilter.setResonance(resonance);
-}
+    {
+        auto cutoffFreq = cutoff * 1000.0f;
+        auto sampleRate = getSampleRate();
+        
+        // JUCE 8.0.12 syntax for StateVariableFilter
+        juce::dsp::StateVariableFilter::Parameters<float> params;
+        params.setLowPass(cutoffFreq, resonance);
+        
+        leftFilter.state = params;
+        rightFilter.state = params;
+    }
     
     juce::ADSR envelope;
 
@@ -203,7 +205,7 @@ private:
     
     double unisonAngles[8] = { 0.0 };
     
-    // Simple filters
+    // Simple filters for JUCE 8
     juce::dsp::StateVariableFilter::Filter<float> leftFilter;
     juce::dsp::StateVariableFilter::Filter<float> rightFilter;
 };
