@@ -158,7 +158,7 @@ NekoSynthAudioProcessorEditor::~NekoSynthAudioProcessorEditor()
 {
 }
 
-// ===== TIMER CALLBACK ADDED =====
+// ===== TIMER CALLBACK =====
 void NekoSynthAudioProcessorEditor::timerCallback()
 {
     repaint();
@@ -204,10 +204,10 @@ void NekoSynthAudioProcessorEditor::paint(juce::Graphics& g)
     g.setColour(juce::Colour::fromRGB(30, 30, 35));
     g.fillRect(meterX, meterY, meterWidth, meterHeight);
     
-    // Meter fill - FIXED LINE (was line 211)
+    // Meter fill
     g.setColour(catButton.getToggleState() ? juce::Colour::fromRGB(0, 180, 255) : 
                 (dogButton.getToggleState() ? juce::Colour::fromRGB(255, 140, 40) : juce::Colours::white));
-    g.fillRect(meterX, meterY, (int)(meterWidth * level), meterHeight);  // <-- FIXED: added (int) cast
+    g.fillRect(meterX, meterY, (int)(meterWidth * level), meterHeight);
     
     // Meter outline
     g.setColour(juce::Colour::fromRGB(60, 60, 70));
