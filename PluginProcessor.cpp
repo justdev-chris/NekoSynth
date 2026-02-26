@@ -12,7 +12,7 @@ public:
     {
         envelope.setSampleRate(44100.0);
         
-        // Initialize filters (using non-deprecated TPT filter)
+        // Initialize filters
         leftFilter.reset();
         rightFilter.reset();
     }
@@ -70,7 +70,7 @@ public:
     {
         juce::SynthesiserVoice::setCurrentPlaybackSampleRate(newRate);
         
-        // Prepare filters for JUCE 8
+        // Prepare filters
         juce::dsp::ProcessSpec spec;
         spec.sampleRate = newRate;
         spec.maximumBlockSize = 512;
@@ -159,14 +159,14 @@ public:
             float env = envelope.getNextSample();
             sample *= level * env * *processor.volume;
             
-            // Apply filters - processSample needs channel index
-            float leftSample = leftFilter.processSample(0, sample);  // channel 0
-            float rightSample = rightFilter.processSample(0, sample); // channel 0 (mono filter)
+            // Apply filters
+            float leftSample = leftFilter.processSample(0, sample);
+            float rightSample = rightFilter.processSample(0, sample);
             
             for (int channel = 0; channel < outputBuffer.getNumChannels(); ++channel)
             {
                 float outSample = (channel == 0) ? leftSample : rightSample;
-                outputBuffer.addSample(channel, startSample, outSample * 0.7f);
+                outputBuffer.addSample(channel, startSample, outSample);
             }
             
             currentAngle += frequency * 2.0 * juce::MathConstants<double>::pi / getSampleRate();
@@ -182,16 +182,20 @@ public:
     
     void updateFilters(float cutoff, float resonance)
     {
-        auto cutoffFreq = cutoff * 1000.0f;
+        auto cutoffFreq = cutoff * 1000.0f;  // Convert kHz to Hz
         
-        // Using the recommended StateVariableTPTFilter API
+        // Clamp to valid range
+        cutoffFreq = juce::jlimit(20.0f, 20000.0f, cutoffFreq);
+        resonance = juce::jlimit(0.1f, 10.0f, resonance);
+        
+        // Set filter parameters
+        leftFilter.setType(juce::dsp::StateVariableTPTFilterType::lowpass);
         leftFilter.setCutoffFrequency(cutoffFreq);
         leftFilter.setResonance(resonance);
-        leftFilter.setType(juce::dsp::StateVariableTPTFilterType::lowpass);
         
+        rightFilter.setType(juce::dsp::StateVariableTPTFilterType::lowpass);
         rightFilter.setCutoffFrequency(cutoffFreq);
         rightFilter.setResonance(resonance);
-        rightFilter.setType(juce::dsp::StateVariableTPTFilterType::lowpass);
     }
     
     juce::ADSR envelope;
@@ -206,7 +210,6 @@ private:
     
     double unisonAngles[8] = { 0.0 };
     
-    // Using the recommended StateVariableTPTFilter
     juce::dsp::StateVariableTPTFilter<float> leftFilter;
     juce::dsp::StateVariableTPTFilter<float> rightFilter;
 };
@@ -270,11 +273,15 @@ void NekoSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juc
 {
     juce::ScopedNoDenormals noDenormals;
     
-    for (int i = 0; i < buffer.getNumChannels(); ++i)
+    auto totalNumInputChannels  = getTotalNumInputChannels();
+    auto totalNumOutputChannels = getTotalNumOutputChannels();
+    
+    for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear(i, 0, buffer.getNumSamples());
     
     synth.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
     
+    // Calculate level for meter
     float level = 0.0f;
     for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
     {
@@ -301,7 +308,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout NekoSynthAudioProcessor::cre
     params.push_back(std::make_unique<juce::AudioParameterFloat>("decay", "Decay", 0.0f, 5.0f, 0.1f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("sustain", "Sustain", 0.0f, 1.0f, 0.8f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("release", "Release", 0.0f, 5.0f, 0.2f));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("volume", "Volume", 0.0f, 1.0f, 0.5f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("volume", "Volume", 0.0f, 1.0f, 0.7f));
     params.push_back(std::make_unique<juce::AudioParameterChoice>("waveform", "Waveform", 
         juce::StringArray({ "Sine", "Saw", "Square" }), 0));
     
@@ -309,7 +316,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout NekoSynthAudioProcessor::cre
         0.0f, 24.0f, 2.0f));
     
     params.push_back(std::make_unique<juce::AudioParameterFloat>("filterCutoff", "Cutoff", 
-        0.02f, 20.0f, 20.0f));
+        juce::NormalisableRange<float>(0.02f, 20.0f, 0.01f, 0.3f), 20.0f));
     
     params.push_back(std::make_unique<juce::AudioParameterFloat>("filterRes", "Resonance", 
         0.1f, 10.0f, 0.7f));
@@ -318,7 +325,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout NekoSynthAudioProcessor::cre
         0.0f, 50.0f, 5.0f));
     
     params.push_back(std::make_unique<juce::AudioParameterChoice>("voiceCount", "Voices", 
-        juce::StringArray({ "1", "2", "3", "4", "5", "6", "7", "8" }), 0));
+        juce::StringArray({ "1", "2", "3", "4", "5", "6", "7", "8" }), 3)); // Default 4 voices (index 3)
     
     return { params.begin(), params.end() };
 }
