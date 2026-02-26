@@ -36,6 +36,7 @@ target_link_libraries(NekoSynth PRIVATE
     juce::juce_audio_processors
     juce::juce_audio_utils
     juce::juce_audio_formats
+    juce::juce_dsp            # ADDED for filter
     juce::juce_gui_basics
     juce::juce_graphics
     juce::juce_data_structures
