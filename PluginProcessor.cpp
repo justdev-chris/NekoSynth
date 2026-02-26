@@ -182,11 +182,13 @@ public:
     
     void updateFilters(float cutoff, float resonance)
 {
-    leftFilter.setCoefficients(juce::dsp::IIR::Coefficients<float>::makeLowPass(
-        getSampleRate(), cutoff * 1000.0f, resonance));
+    leftFilter.setType(juce::dsp::StateVariableFilter::Filter<float>::Type::lowPass);
+    leftFilter.setCutoffFrequency(getSampleRate(), cutoff * 1000.0f);
+    leftFilter.setResonance(resonance);
     
-    rightFilter.setCoefficients(juce::dsp::IIR::Coefficients<float>::makeLowPass(
-        getSampleRate(), cutoff * 1000.0f, resonance));
+    rightFilter.setType(juce::dsp::StateVariableFilter::Filter<float>::Type::lowPass);
+    rightFilter.setCutoffFrequency(getSampleRate(), cutoff * 1000.0f);
+    rightFilter.setResonance(resonance);
 }
     
     juce::ADSR envelope;
