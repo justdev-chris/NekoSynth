@@ -61,7 +61,7 @@ NekoSynthAudioProcessorEditor::NekoSynthAudioProcessorEditor(NekoSynthAudioProce
     addAndMakeVisible(sustainSlider);
     addAndMakeVisible(releaseSlider);
     
-    // ===== NEW PITCH RANGE SLIDER =====
+    // ===== PITCH RANGE SLIDER =====
     setupSlider(pitchRangeSlider, juce::Colour::fromRGB(180, 130, 255));
     addAndMakeVisible(pitchRangeSlider);
     pitchRangeLabel.setText("PITCH", juce::dontSendNotification);
@@ -69,7 +69,7 @@ NekoSynthAudioProcessorEditor::NekoSynthAudioProcessorEditor(NekoSynthAudioProce
     pitchRangeLabel.setJustificationType(juce::Justification::centred);
     addAndMakeVisible(pitchRangeLabel);
     
-    // ===== NEW FILTER SLIDERS =====
+    // ===== FILTER SLIDERS =====
     setupSlider(filterCutoffSlider, juce::Colour::fromRGB(255, 150, 200));
     setupSlider(filterResSlider, juce::Colour::fromRGB(200, 150, 255));
     addAndMakeVisible(filterCutoffSlider);
@@ -84,7 +84,7 @@ NekoSynthAudioProcessorEditor::NekoSynthAudioProcessorEditor(NekoSynthAudioProce
     addAndMakeVisible(filterCutoffLabel);
     addAndMakeVisible(filterResLabel);
     
-    // ===== NEW UNISON CONTROLS =====
+    // ===== UNISON CONTROLS =====
     setupSlider(detuneSlider, juce::Colour::fromRGB(150, 200, 255));
     addAndMakeVisible(detuneSlider);
     detuneLabel.setText("DETUNE", juce::dontSendNotification);
@@ -143,14 +143,12 @@ NekoSynthAudioProcessorEditor::NekoSynthAudioProcessorEditor(NekoSynthAudioProce
     sustainAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "sustain", sustainSlider);
     releaseAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "release", releaseSlider);
     
-    // New attachments
     pitchRangeAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "pitchBendRange", pitchRangeSlider);
     filterCutoffAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "filterCutoff", filterCutoffSlider);
     filterResAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "filterRes", filterResSlider);
     detuneAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "detune", detuneSlider);
     voiceCountAttachment = std::make_unique<ComboAttachment>(audioProcessor.apvts, "voiceCount", voiceCountCombo);
     
-    // Start timer for meter updates
     startTimerHz(30);
     
     setSize(900, 450);
@@ -160,9 +158,10 @@ NekoSynthAudioProcessorEditor::~NekoSynthAudioProcessorEditor()
 {
 }
 
+// ===== TIMER CALLBACK ADDED =====
 void NekoSynthAudioProcessorEditor::timerCallback()
 {
-    repaint(); // Trigger repaint for meter
+    repaint();
 }
 
 void NekoSynthAudioProcessorEditor::paint(juce::Graphics& g)
@@ -194,7 +193,7 @@ void NekoSynthAudioProcessorEditor::paint(juce::Graphics& g)
     g.setFont(juce::Font(14.0f));
     g.drawText(modeText, 30, 135, 200, 20, juce::Justification::left);
     
-    // Level meter (7)
+    // Level meter
     float level = audioProcessor.getCurrentLevel();
     int meterWidth = 150;
     int meterX = getWidth() - meterWidth - 30;
@@ -205,10 +204,10 @@ void NekoSynthAudioProcessorEditor::paint(juce::Graphics& g)
     g.setColour(juce::Colour::fromRGB(30, 30, 35));
     g.fillRect(meterX, meterY, meterWidth, meterHeight);
     
-    // Meter fill
+    // Meter fill - FIXED LINE (was line 211)
     g.setColour(catButton.getToggleState() ? juce::Colour::fromRGB(0, 180, 255) : 
                 (dogButton.getToggleState() ? juce::Colour::fromRGB(255, 140, 40) : juce::Colours::white));
-    g.fillRect(meterX, meterY, meterWidth * level, meterHeight);
+    g.fillRect(meterX, meterY, (int)(meterWidth * level), meterHeight);  // <-- FIXED: added (int) cast
     
     // Meter outline
     g.setColour(juce::Colour::fromRGB(60, 60, 70));
@@ -224,57 +223,46 @@ void NekoSynthAudioProcessorEditor::resized()
 {
     auto area = getLocalBounds().reduced(30);
     
-    // Title area (skip)
     area.removeFromTop(120);
     
-    // Mode buttons
     auto buttonRow = area.removeFromTop(40);
     catButton.setBounds(buttonRow.removeFromLeft(80).reduced(5));
     dogButton.setBounds(buttonRow.removeFromLeft(80).reduced(5));
     
     area.removeFromTop(10);
     
-    // Waveform selector
     auto waveArea = area.removeFromTop(40);
     waveformSelector.setBounds(waveArea.removeFromLeft(100).reduced(5));
     waveformLabel.setBounds(waveArea);
     
     area.removeFromTop(20);
     
-    // Split into left and right sections
     auto leftSection = area.removeFromLeft(area.getWidth() / 2 - 15);
     auto rightSection = area;
     
-    // LEFT SECTION - Basic controls
     auto adsrRow = leftSection.removeFromTop(180);
     int sliderWidth = adsrRow.getWidth() / 5;
     
-    // Volume
     auto volArea = adsrRow.removeFromLeft(sliderWidth);
     volumeSlider.setBounds(volArea.reduced(5, 20));
     volumeLabel.setBounds(volArea.removeFromBottom(20));
     
-    // Attack
     auto attArea = adsrRow.removeFromLeft(sliderWidth);
     attackSlider.setBounds(attArea.reduced(5, 20));
     attackLabel.setBounds(attArea.removeFromBottom(20));
     
-    // Decay
     auto decArea = adsrRow.removeFromLeft(sliderWidth);
     decaySlider.setBounds(decArea.reduced(5, 20));
     decayLabel.setBounds(decArea.removeFromBottom(20));
     
-    // Sustain
     auto susArea = adsrRow.removeFromLeft(sliderWidth);
     sustainSlider.setBounds(susArea.reduced(5, 20));
     sustainLabel.setBounds(susArea.removeFromBottom(20));
     
-    // Release
     auto relArea = adsrRow.removeFromLeft(sliderWidth);
     releaseSlider.setBounds(relArea.reduced(5, 20));
     releaseLabel.setBounds(relArea.removeFromBottom(20));
     
-    // RIGHT SECTION - New controls
     auto pitchArea = rightSection.removeFromTop(60);
     pitchRangeSlider.setBounds(pitchArea.removeFromLeft(60).reduced(5, 10));
     pitchRangeLabel.setBounds(pitchArea);
@@ -291,6 +279,5 @@ void NekoSynthAudioProcessorEditor::resized()
     voiceCountCombo.setBounds(unisonArea.removeFromLeft(80).reduced(5, 20));
     voiceCountLabel.setBounds(unisonArea);
     
-    // Level meter at bottom right
     meterLabel.setBounds(rightSection.getWidth() - 150, rightSection.getHeight() - 30, 150, 20);
 }
