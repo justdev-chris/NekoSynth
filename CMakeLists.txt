@@ -23,7 +23,6 @@ juce_add_plugin(NekoSynth
     VST3_PLUGIN_NAME "NekoSynth"          # Plugin name
     VST3_PLUGIN_VENDOR "justdev-chris"    # Vendor for VST3
     VST3_PLUGIN_URL "https://github.com/justdev-chris"  # Optional
-    VST3_PLUGIN_EMAIL "your@email.com"    # Optional
     DESCRIPTION "Meow + Bark Synth"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
@@ -65,9 +64,6 @@ target_compile_definitions(NekoSynth PRIVATE
     # Force VST3 vendor metadata
     JUCE_VST3_MANUFACTURER_NAME="justdev-chris"
     JUCE_VST3_PLUGIN_VENDOR="justdev-chris"
-    # Ensure manufacturer code is set
-    JucePlugin_Manufacturer="justdev-chris"
-    JucePlugin_ManufacturerCode=0x4A444331  # 'JDC1' in hex
 )
 
 set_target_properties(NekoSynth PROPERTIES
@@ -84,8 +80,8 @@ add_custom_command(TARGET NekoSynth POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E echo "========================================"
 )
 
-# Optional: Install target for easy copying to plugin folder
-install(TARGETS NekoSynst
+# Fixed: Install target (removed the typo "NekoSynst")
+install(TARGETS NekoSynth
     RUNTIME DESTINATION .
     LIBRARY DESTINATION .
 )
