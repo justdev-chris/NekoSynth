@@ -2,13 +2,22 @@
 #include "PluginEditor.h"
 #include <juce_audio_formats/juce_audio_formats.h>
 #include <cmath>
+#include <random>
 
+//==============================================================================
 class NekoSynthAudioProcessor::NekoVoice : public juce::SynthesiserVoice
 {
 public:
     NekoVoice(NekoSynthAudioProcessor& p) : processor(p) 
     {
         envelope.setSampleRate(44100.0);
+        
+        // Initialize filters for each voice
+        for (auto& filter : leftFilters)
+            filter.reset(new juce::dsp::ProcessorDuplicator<juce::dsp::StateVariableFilter::Filter<float>>);
+        
+        for (auto& filter : rightFilters)
+            filter.reset(new juce::dsp::ProcessorDuplicator<juce::dsp::StateVariableFilter::Filter<float>>);
     }
     
     bool canPlaySound(juce::SynthesiserSound* sound) override
@@ -21,9 +30,15 @@ public:
     {
         currentAngle = 0.0;
         level = velocity * 0.5;
-        tailWagPhase = 0.0;
         
+        // Store base frequency
         baseFrequency = 440.0f * std::pow(2.0f, (midiNoteNumber - 69) / 12.0f);
+        
+        // Randomize phases for unison voices
+        for (int i = 0; i < maxUnisonVoices; ++i)
+        {
+            unisonAngles[i] = (double)rand() / RAND_MAX * juce::MathConstants<double>::twoPi;
+        }
         
         juce::ADSR::Parameters params;
         params.attack = *processor.attack;
@@ -55,14 +70,41 @@ public:
     
     void controllerMoved(int, int) override {}
     
+    void setCurrentPlaybackSampleRate(double newRate) override
+    {
+        juce::SynthesiserVoice::setCurrentPlaybackSampleRate(newRate);
+        
+        // Update filters with new sample rate
+        juce::dsp::ProcessSpec spec;
+        spec.sampleRate = newRate;
+        spec.maximumBlockSize = 512;
+        spec.numChannels = 1;
+        
+        for (auto& filter : leftFilters)
+            filter->prepare(spec);
+        
+        for (auto& filter : rightFilters)
+            filter->prepare(spec);
+    }
+    
     void renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int startSample, int numSamples) override
     {
         if (!isVoiceActive())
             return;
         
+        // Get parameters
+        float pitchRange = *processor.pitchBendRange;
+        int numVoices = (int)*processor.voiceCount;
+        float detuneAmount = *processor.detune;
+        float cutoff = *processor.filterCutoff;
+        float resonance = *processor.filterRes;
+        
+        // Update filter coefficients
+        updateFilters(cutoff, resonance);
+        
         while (--numSamples >= 0)
         {
-            float pitchMultiplier = 1.0f + pitchBend * 0.05f;
+            float pitchMultiplier = 1.0f + pitchBend * pitchRange * 0.01f; // Pitch range in semitones
             float frequency = baseFrequency * pitchMultiplier;
             
             // Animal pitch modulation
@@ -95,42 +137,62 @@ public:
                 frequency *= 1.0f + noise * 0.03f * (barkPhase < 0.3f ? 1.0f : 0.0f);
             }
             
-            // Waveform selection
+            // Generate sample with unison
             float sample = 0.0f;
             int waveType = (int)*processor.waveform;
             
+            for (int v = 0; v < numVoices; ++v)
+            {
+                float detuneFactor = 1.0f + (v - (numVoices-1)/2.0f) * detuneAmount * 0.001f;
+                float voiceFreq = frequency * detuneFactor;
+                
+                // Use different phases for each voice
+                double angle = currentAngle * detuneFactor + unisonAngles[v];
+                
+                float voiceSample;
+                if (waveType == 0) // Sine
+                    voiceSample = std::sin(angle);
+                else if (waveType == 1) // Saw
+                    voiceSample = 2.0f * (angle / juce::MathConstants<double>::twoPi) - 1.0f;
+                else // Square
+                    voiceSample = std::sin(angle) > 0 ? 0.5f : -0.5f;
+                
+                sample += voiceSample;
+            }
+            sample /= (float)numVoices; // Normalize
+            
+            // Apply animal-specific coloring
             if (*processor.catMode > 0.5f)
             {
-                // Cat mode uses sine-based
-                sample = std::sin(currentAngle);
-                if (waveType == 1) // Add saw characteristics
-                    sample += std::sin(currentAngle * 2.0f) * 0.3f;
-                else if (waveType == 2) // Add square characteristics
-                    sample = sample > 0 ? 0.5f : -0.5f;
+                sample += std::sin(currentAngle * 2.0f) * 0.2f;
             }
             else
             {
-                // Dog mode uses saw-based
-                sample = 2.0f * (currentAngle / juce::MathConstants<float>::twoPi) - 1.0f;
-                
-                if (waveType == 0) // Make it more sine-like
-                    sample = std::sin(currentAngle);
-                else if (waveType == 2) // Square
-                    sample = sample > 0 ? 0.5f : -0.5f;
-                else // Saw
-                    sample = std::tanh(sample * 2.0f) * 0.5f;
+                sample = std::tanh(sample * 2.0f) * 0.7f;
             }
             
             float env = envelope.getNextSample();
             sample *= level * env * *processor.volume;
             
-            for (int channel = 0; channel < outputBuffer.getNumChannels(); ++channel)
+            // Apply filter to each channel
+            float leftSample = sample;
+            float rightSample = sample;
+            
+            for (int v = 0; v < numVoices; ++v)
             {
-                outputBuffer.addSample(channel, startSample, sample * 0.5f);
+                leftSample = leftFilters[v]->processSample(leftSample);
+                rightSample = rightFilters[v]->processSample(rightSample);
             }
             
-            currentAngle += frequency * 2.0 * juce::MathConstants<double>::pi / getSampleRate();
+            // Output to both channels
+            for (int channel = 0; channel < outputBuffer.getNumChannels(); ++channel)
+            {
+                float outSample = (channel == 0) ? leftSample : rightSample;
+                outputBuffer.addSample(channel, startSample, outSample * 0.7f);
+            }
             
+            // Update angle for next sample
+            currentAngle += frequency * 2.0 * juce::MathConstants<double>::pi / getSampleRate();
             if (currentAngle >= juce::MathConstants<double>::twoPi)
                 currentAngle -= juce::MathConstants<double>::twoPi;
             
@@ -139,6 +201,21 @@ public:
         
         if (!envelope.isActive())
             clearCurrentNote();
+    }
+    
+    void updateFilters(float cutoff, float resonance)
+    {
+        for (auto& filter : leftFilters)
+        {
+            *filter->state = *juce::dsp::IIR::Coefficients<float>::makeLowPass(
+                getSampleRate(), cutoff * 1000.0f, resonance);
+        }
+        
+        for (auto& filter : rightFilters)
+        {
+            *filter->state = *juce::dsp::IIR::Coefficients<float>::makeLowPass(
+                getSampleRate(), cutoff * 1000.0f, resonance);
+        }
     }
     
     juce::ADSR envelope;
@@ -150,16 +227,23 @@ private:
     double baseFrequency = 440.0;
     float level = 0.0;
     float pitchBend = 0.0f;
-    float tailWagPhase = 0.0f;
+    
+    static constexpr int maxUnisonVoices = 8;
+    double unisonAngles[maxUnisonVoices] = { 0.0 };
+    
+    // Per-voice filters for stereo
+    std::unique_ptr<juce::dsp::ProcessorDuplicator<juce::dsp::StateVariableFilter::Filter<float>>> leftFilters[maxUnisonVoices];
+    std::unique_ptr<juce::dsp::ProcessorDuplicator<juce::dsp::StateVariableFilter::Filter<float>>> rightFilters[maxUnisonVoices];
 };
 
-// DUMMY SOUND CLASS - FIXED
+//==============================================================================
 struct DummySound : public juce::SynthesiserSound
 {
     bool appliesToNote(int) override { return true; }
     bool appliesToChannel(int) override { return true; }
 };
 
+//==============================================================================
 NekoSynthAudioProcessor::NekoSynthAudioProcessor()
     : AudioProcessor(BusesProperties().withOutput("Output", juce::AudioChannelSet::stereo(), true)),
       apvts(*this, nullptr, "Parameters", createParameters())
@@ -173,10 +257,16 @@ NekoSynthAudioProcessor::NekoSynthAudioProcessor()
     release = apvts.getRawParameterValue("release");
     waveform = apvts.getRawParameterValue("waveform");
     
+    // New parameters
+    pitchBendRange = apvts.getRawParameterValue("pitchBendRange");
+    filterCutoff = apvts.getRawParameterValue("filterCutoff");
+    filterRes = apvts.getRawParameterValue("filterRes");
+    detune = apvts.getRawParameterValue("detune");
+    voiceCount = apvts.getRawParameterValue("voiceCount");
+    
     for (int i = 0; i < 8; ++i)
         synth.addVoice(new NekoVoice(*this));
     
-    // FIXED: Using DummySound instead of SamplerSound
     synth.addSound(new DummySound());
 }
 
@@ -184,6 +274,7 @@ NekoSynthAudioProcessor::~NekoSynthAudioProcessor()
 {
 }
 
+//==============================================================================
 void NekoSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     synth.setCurrentPlaybackSampleRate(sampleRate);
@@ -209,17 +300,29 @@ void NekoSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juc
         buffer.clear(i, 0, buffer.getNumSamples());
     
     synth.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
+    
+    // Update level meter (simple peak)
+    float level = 0.0f;
+    for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
+    {
+        level += buffer.getMagnitude(channel, 0, buffer.getNumSamples());
+    }
+    level /= buffer.getNumChannels();
+    currentLevel = level;
 }
 
+//==============================================================================
 juce::AudioProcessorEditor* NekoSynthAudioProcessor::createEditor()
 {
     return new NekoSynthAudioProcessorEditor(*this);
 }
 
+//==============================================================================
 juce::AudioProcessorValueTreeState::ParameterLayout NekoSynthAudioProcessor::createParameters()
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
     
+    // Existing parameters
     params.push_back(std::make_unique<juce::AudioParameterFloat>("catMode", "Cat Mode", 0.0f, 1.0f, 1.0f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("dogMode", "Dog Mode", 0.0f, 1.0f, 0.0f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("attack", "Attack", 0.0f, 5.0f, 0.1f));
@@ -229,6 +332,27 @@ juce::AudioProcessorValueTreeState::ParameterLayout NekoSynthAudioProcessor::cre
     params.push_back(std::make_unique<juce::AudioParameterFloat>("volume", "Volume", 0.0f, 1.0f, 0.5f));
     params.push_back(std::make_unique<juce::AudioParameterChoice>("waveform", "Waveform", 
         juce::StringArray({ "Sine", "Saw", "Square" }), 0));
+    
+    // NEW PARAMETERS
+    // 1. Pitch Bend Range (0-24 semitones)
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("pitchBendRange", "Pitch Range", 
+        0.0f, 24.0f, 2.0f));
+    
+    // 2. Filter Cutoff (20Hz - 20kHz)
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("filterCutoff", "Cutoff", 
+        0.02f, 20.0f, 20.0f)); // In kHz for nicer UI numbers
+    
+    // 2. Filter Resonance (0.1 - 10)
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("filterRes", "Resonance", 
+        0.1f, 10.0f, 0.7f));
+    
+    // 5. Detune amount (0-50 cents)
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("detune", "Detune", 
+        0.0f, 50.0f, 5.0f));
+    
+    // 5. Number of unison voices (1-8)
+    params.push_back(std::make_unique<juce::AudioParameterChoice>("voiceCount", "Voices", 
+        juce::StringArray({ "1", "2", "3", "4", "5", "6", "7", "8" }), 0));
     
     return { params.begin(), params.end() };
 }
@@ -247,6 +371,7 @@ void NekoSynthAudioProcessor::setStateInformation(const void* data, int sizeInBy
         apvts.replaceState(juce::ValueTree::fromXml(*xml));
 }
 
+//==============================================================================
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new NekoSynthAudioProcessor();
