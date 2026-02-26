@@ -180,12 +180,14 @@ public:
             clearCurrentNote();
     }
     
-    // FIXED: Use setCutoffFrequency instead of coefficients
     void updateFilters(float cutoff, float resonance)
-    {
-        leftFilter.setCutoffFrequency(getSampleRate(), cutoff * 1000.0f, resonance);
-        rightFilter.setCutoffFrequency(getSampleRate(), cutoff * 1000.0f, resonance);
-    }
+{
+    leftFilter.setCoefficients(juce::dsp::IIR::Coefficients<float>::makeLowPass(
+        getSampleRate(), cutoff * 1000.0f, resonance));
+    
+    rightFilter.setCoefficients(juce::dsp::IIR::Coefficients<float>::makeLowPass(
+        getSampleRate(), cutoff * 1000.0f, resonance));
+}
     
     juce::ADSR envelope;
 
