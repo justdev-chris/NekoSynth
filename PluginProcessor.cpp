@@ -1,7 +1,6 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include <juce_audio_formats/juce_audio_formats.h>
-#include <juce_dsp/juce_dsp.h>
 #include <cmath>
 #include <random>
 
@@ -181,14 +180,12 @@ public:
             clearCurrentNote();
     }
     
+    // FIXED: Use setCutoffFrequency instead of coefficients
     void updateFilters(float cutoff, float resonance)
-{
-    auto coeffs = juce::dsp::IIR::Coefficients<float>::makeLowPass(
-        getSampleRate(), cutoff * 1000.0f, resonance);
-    
-    leftFilter.coefficients = coeffs;
-    rightFilter.coefficients = coeffs;
-}
+    {
+        leftFilter.setCutoffFrequency(getSampleRate(), cutoff * 1000.0f, resonance);
+        rightFilter.setCutoffFrequency(getSampleRate(), cutoff * 1000.0f, resonance);
+    }
     
     juce::ADSR envelope;
 
@@ -202,7 +199,7 @@ private:
     
     double unisonAngles[8] = { 0.0 };
     
-    // FIXED: Simple filters, no templates
+    // Simple filters
     juce::dsp::StateVariableFilter::Filter<float> leftFilter;
     juce::dsp::StateVariableFilter::Filter<float> rightFilter;
 };
