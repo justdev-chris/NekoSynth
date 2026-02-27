@@ -4,7 +4,13 @@
 NekoSynthAudioProcessorEditor::NekoSynthAudioProcessorEditor(NekoSynthAudioProcessor& p)
     : AudioProcessorEditor(&p), audioProcessor(p)
 {
-    // ===== CAT BUTTON =====
+    // ===== MODE GROUP =====
+    modeGroup.setText("MODE");
+    modeGroup.setTextLabelPosition(juce::Justification::centred);
+    modeGroup.setColour(juce::GroupComponent::outlineColourId, juce::Colour::fromRGB(60, 60, 70));
+    modeGroup.setColour(juce::GroupComponent::textColourId, juce::Colours::grey);
+    addAndMakeVisible(modeGroup);
+    
     catButton.setButtonText("CAT");
     catButton.setClickingTogglesState(true);
     catButton.setColour(juce::TextButton::buttonColourId, juce::Colour::fromRGB(25, 25, 30));
@@ -13,7 +19,6 @@ NekoSynthAudioProcessorEditor::NekoSynthAudioProcessorEditor(NekoSynthAudioProce
     catButton.setColour(juce::TextButton::textColourOnId, juce::Colours::white);
     addAndMakeVisible(catButton);
     
-    // ===== DOG BUTTON =====
     dogButton.setButtonText("DOG");
     dogButton.setClickingTogglesState(true);
     dogButton.setColour(juce::TextButton::buttonColourId, juce::Colour::fromRGB(25, 25, 30));
@@ -22,7 +27,13 @@ NekoSynthAudioProcessorEditor::NekoSynthAudioProcessorEditor(NekoSynthAudioProce
     dogButton.setColour(juce::TextButton::textColourOnId, juce::Colours::white);
     addAndMakeVisible(dogButton);
     
-    // ===== WAVEFORM SELECTOR =====
+    // ===== OSCILLATOR GROUP =====
+    oscGroup.setText("OSCILLATOR");
+    oscGroup.setTextLabelPosition(juce::Justification::centred);
+    oscGroup.setColour(juce::GroupComponent::outlineColourId, juce::Colour::fromRGB(60, 60, 70));
+    oscGroup.setColour(juce::GroupComponent::textColourId, juce::Colours::grey);
+    addAndMakeVisible(oscGroup);
+    
     waveformSelector.addItem("SINE", 1);
     waveformSelector.addItem("SAW", 2);
     waveformSelector.addItem("SQUARE", 3);
@@ -30,71 +41,14 @@ NekoSynthAudioProcessorEditor::NekoSynthAudioProcessorEditor(NekoSynthAudioProce
     waveformSelector.setColour(juce::ComboBox::backgroundColourId, juce::Colour::fromRGB(20, 20, 25));
     waveformSelector.setColour(juce::ComboBox::textColourId, juce::Colours::white);
     waveformSelector.setColour(juce::ComboBox::outlineColourId, juce::Colour::fromRGB(60, 60, 70));
-    waveformSelector.setColour(juce::ComboBox::buttonColourId, juce::Colour::fromRGB(80, 80, 90));
     addAndMakeVisible(waveformSelector);
     
-    waveformLabel.setText("WAVE", juce::dontSendNotification);
-    waveformLabel.setColour(juce::Label::textColourId, juce::Colours::grey);
-    waveformLabel.setJustificationType(juce::Justification::centred);
-    addAndMakeVisible(waveformLabel);
-    
-    // ===== SLIDER SETUP HELPER =====
-    auto setupSlider = [](juce::Slider& slider, juce::Colour thumbColour)
-    {
-        slider.setSliderStyle(juce::Slider::LinearVertical);
-        slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 20);
-        slider.setNumDecimalPlacesToDisplay(2);
-        slider.setColour(juce::Slider::trackColourId, juce::Colour::fromRGB(60, 60, 70));
-        slider.setColour(juce::Slider::thumbColourId, thumbColour);
-        slider.setColour(juce::Slider::backgroundColourId, juce::Colour::fromRGB(30, 30, 35));
-        slider.setColour(juce::Slider::textBoxTextColourId, juce::Colours::white);
-        slider.setColour(juce::Slider::textBoxBackgroundColourId, juce::Colour::fromRGB(20, 20, 25));
-        slider.setColour(juce::Slider::textBoxOutlineColourId, juce::Colour::fromRGB(60, 60, 70));
-    };
-    
-    // ===== ADSR + VOLUME SLIDERS =====
-    setupSlider(volumeSlider, juce::Colours::white);
-    setupSlider(attackSlider, juce::Colour::fromRGB(100, 150, 255));
-    setupSlider(decaySlider, juce::Colour::fromRGB(100, 200, 150));
-    setupSlider(sustainSlider, juce::Colour::fromRGB(255, 220, 100));
-    setupSlider(releaseSlider, juce::Colour::fromRGB(255, 120, 120));
-    
-    addAndMakeVisible(volumeSlider);
-    addAndMakeVisible(attackSlider);
-    addAndMakeVisible(decaySlider);
-    addAndMakeVisible(sustainSlider);
-    addAndMakeVisible(releaseSlider);
-    
-    // ===== PITCH RANGE SLIDER =====
-    setupSlider(pitchRangeSlider, juce::Colour::fromRGB(180, 130, 255));
-    addAndMakeVisible(pitchRangeSlider);
-    pitchRangeLabel.setText("PITCH", juce::dontSendNotification);
-    pitchRangeLabel.setColour(juce::Label::textColourId, juce::Colours::grey);
-    pitchRangeLabel.setJustificationType(juce::Justification::centred);
-    addAndMakeVisible(pitchRangeLabel);
-    
-    // ===== FILTER SLIDERS =====
-    setupSlider(filterCutoffSlider, juce::Colour::fromRGB(255, 150, 200));
-    setupSlider(filterResSlider, juce::Colour::fromRGB(200, 150, 255));
-    addAndMakeVisible(filterCutoffSlider);
-    addAndMakeVisible(filterResSlider);
-    
-    filterCutoffLabel.setText("CUT", juce::dontSendNotification);
-    filterResLabel.setText("RES", juce::dontSendNotification);
-    filterCutoffLabel.setColour(juce::Label::textColourId, juce::Colours::grey);
-    filterResLabel.setColour(juce::Label::textColourId, juce::Colours::grey);
-    filterCutoffLabel.setJustificationType(juce::Justification::centred);
-    filterResLabel.setJustificationType(juce::Justification::centred);
-    addAndMakeVisible(filterCutoffLabel);
-    addAndMakeVisible(filterResLabel);
-    
-    // ===== UNISON CONTROLS =====
-    setupSlider(detuneSlider, juce::Colour::fromRGB(150, 200, 255));
-    addAndMakeVisible(detuneSlider);
-    detuneLabel.setText("DETUNE", juce::dontSendNotification);
-    detuneLabel.setColour(juce::Label::textColourId, juce::Colours::grey);
-    detuneLabel.setJustificationType(juce::Justification::centred);
-    addAndMakeVisible(detuneLabel);
+    // ===== UNISON GROUP =====
+    unisonGroup.setText("UNISON");
+    unisonGroup.setTextLabelPosition(juce::Justification::centred);
+    unisonGroup.setColour(juce::GroupComponent::outlineColourId, juce::Colour::fromRGB(60, 60, 70));
+    unisonGroup.setColour(juce::GroupComponent::textColourId, juce::Colours::grey);
+    addAndMakeVisible(unisonGroup);
     
     voiceCountCombo.addItem("1", 1);
     voiceCountCombo.addItem("2", 2);
@@ -104,37 +58,70 @@ NekoSynthAudioProcessorEditor::NekoSynthAudioProcessorEditor(NekoSynthAudioProce
     voiceCountCombo.addItem("6", 6);
     voiceCountCombo.addItem("7", 7);
     voiceCountCombo.addItem("8", 8);
-    voiceCountCombo.setSelectedId(4); // Default to 4 voices
+    voiceCountCombo.setSelectedId(4);
     voiceCountCombo.setColour(juce::ComboBox::backgroundColourId, juce::Colour::fromRGB(20, 20, 25));
     voiceCountCombo.setColour(juce::ComboBox::textColourId, juce::Colours::white);
     voiceCountCombo.setColour(juce::ComboBox::outlineColourId, juce::Colour::fromRGB(60, 60, 70));
     addAndMakeVisible(voiceCountCombo);
     
-    voiceCountLabel.setText("VOICES", juce::dontSendNotification);
-    voiceCountLabel.setColour(juce::Label::textColourId, juce::Colours::grey);
-    voiceCountLabel.setJustificationType(juce::Justification::centred);
-    addAndMakeVisible(voiceCountLabel);
-    
-    // ===== LABELS FOR EXISTING SLIDERS =====
-    volumeLabel.setText("VOL", juce::dontSendNotification);
-    attackLabel.setText("ATK", juce::dontSendNotification);
-    decayLabel.setText("DEC", juce::dontSendNotification);
-    sustainLabel.setText("SUS", juce::dontSendNotification);
-    releaseLabel.setText("REL", juce::dontSendNotification);
-    
-    for (auto* label : { &volumeLabel, &attackLabel, &decayLabel, &sustainLabel, &releaseLabel })
+    // ===== SLIDER SETUP =====
+    auto setupSlider = [](juce::Slider& slider, juce::Colour thumbColour, const juce::String& suffix = "")
     {
-        label->setColour(juce::Label::textColourId, juce::Colours::grey);
-        label->setJustificationType(juce::Justification::centred);
-        label->setFont(juce::Font(12.0f, juce::Font::bold));
-        addAndMakeVisible(label);
-    }
+        slider.setSliderStyle(juce::Slider::LinearVertical);
+        slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 18);
+        slider.setNumDecimalPlacesToDisplay(2);
+        slider.setColour(juce::Slider::trackColourId, juce::Colour::fromRGB(60, 60, 70));
+        slider.setColour(juce::Slider::thumbColourId, thumbColour);
+        slider.setColour(juce::Slider::backgroundColourId, juce::Colour::fromRGB(30, 30, 35));
+        slider.setColour(juce::Slider::textBoxTextColourId, juce::Colours::white);
+        slider.setColour(juce::Slider::textBoxBackgroundColourId, juce::Colour::fromRGB(20, 20, 25));
+        slider.setColour(juce::Slider::textBoxOutlineColourId, juce::Colour::fromRGB(60, 60, 70));
+        if (suffix.isNotEmpty())
+            slider.setTextValueSuffix(suffix);
+    };
     
-    // ===== LEVEL METER LABEL =====
-    meterLabel.setText("LEVEL", juce::dontSendNotification);
-    meterLabel.setColour(juce::Label::textColourId, juce::Colours::grey);
-    meterLabel.setJustificationType(juce::Justification::centred);
-    addAndMakeVisible(meterLabel);
+    // ===== AMPLITUDE GROUP =====
+    ampGroup.setText("AMPLITUDE");
+    ampGroup.setTextLabelPosition(juce::Justification::centred);
+    ampGroup.setColour(juce::GroupComponent::outlineColourId, juce::Colour::fromRGB(60, 60, 70));
+    ampGroup.setColour(juce::GroupComponent::textColourId, juce::Colours::grey);
+    addAndMakeVisible(ampGroup);
+    
+    setupSlider(volumeSlider, juce::Colours::white, "");
+    setupSlider(attackSlider, juce::Colour::fromRGB(100, 150, 255), "s");
+    setupSlider(decaySlider, juce::Colour::fromRGB(100, 200, 150), "s");
+    setupSlider(sustainSlider, juce::Colour::fromRGB(255, 220, 100), "");
+    setupSlider(releaseSlider, juce::Colour::fromRGB(255, 120, 120), "s");
+    
+    addAndMakeVisible(volumeSlider);
+    addAndMakeVisible(attackSlider);
+    addAndMakeVisible(decaySlider);
+    addAndMakeVisible(sustainSlider);
+    addAndMakeVisible(releaseSlider);
+    
+    // ===== FILTER GROUP =====
+    filterGroup.setText("FILTER");
+    filterGroup.setTextLabelPosition(juce::Justification::centred);
+    filterGroup.setColour(juce::GroupComponent::outlineColourId, juce::Colour::fromRGB(60, 60, 70));
+    filterGroup.setColour(juce::GroupComponent::textColourId, juce::Colours::grey);
+    addAndMakeVisible(filterGroup);
+    
+    setupSlider(filterCutoffSlider, juce::Colour::fromRGB(255, 150, 200), "Hz");
+    setupSlider(filterResSlider, juce::Colour::fromRGB(200, 150, 255), "");
+    addAndMakeVisible(filterCutoffSlider);
+    addAndMakeVisible(filterResSlider);
+    
+    // ===== PITCH GROUP =====
+    pitchGroup.setText("PITCH");
+    pitchGroup.setTextLabelPosition(juce::Justification::centred);
+    pitchGroup.setColour(juce::GroupComponent::outlineColourId, juce::Colour::fromRGB(60, 60, 70));
+    pitchGroup.setColour(juce::GroupComponent::textColourId, juce::Colours::grey);
+    addAndMakeVisible(pitchGroup);
+    
+    setupSlider(pitchRangeSlider, juce::Colour::fromRGB(180, 130, 255), "st");
+    setupSlider(detuneSlider, juce::Colour::fromRGB(150, 200, 255), "ct");
+    addAndMakeVisible(pitchRangeSlider);
+    addAndMakeVisible(detuneSlider);
     
     // ===== ATTACHMENTS =====
     catAttachment = std::make_unique<ButtonAttachment>(audioProcessor.apvts, "catMode", catButton);
@@ -154,15 +141,11 @@ NekoSynthAudioProcessorEditor::NekoSynthAudioProcessorEditor(NekoSynthAudioProce
     voiceCountAttachment = std::make_unique<ComboAttachment>(audioProcessor.apvts, "voiceCount", voiceCountCombo);
     
     startTimerHz(30);
-    
-    setSize(900, 450);
+    setSize(1000, 550);
 }
 
-NekoSynthAudioProcessorEditor::~NekoSynthAudioProcessorEditor()
-{
-}
+NekoSynthAudioProcessorEditor::~NekoSynthAudioProcessorEditor() {}
 
-// ===== TIMER CALLBACK =====
 void NekoSynthAudioProcessorEditor::timerCallback()
 {
     repaint();
@@ -170,7 +153,7 @@ void NekoSynthAudioProcessorEditor::timerCallback()
 
 void NekoSynthAudioProcessorEditor::paint(juce::Graphics& g)
 {
-    // Background gradient
+    // Background
     g.setGradientFill(juce::ColourGradient::vertical(
         juce::Colour::fromRGB(18, 18, 22), 0,
         juce::Colour::fromRGB(10, 10, 14), getHeight()));
@@ -178,46 +161,36 @@ void NekoSynthAudioProcessorEditor::paint(juce::Graphics& g)
     
     // Title
     g.setColour(juce::Colours::white);
-    g.setFont(juce::Font(42.0f, juce::Font::bold));
-    g.drawText("NEKO", 30, 25, 200, 50, juce::Justification::left);
+    g.setFont(juce::Font(48.0f, juce::Font::bold));
+    g.drawText("NEKO", 30, 20, 200, 50, juce::Justification::left);
     
     g.setColour(catButton.getToggleState() ? juce::Colour::fromRGB(0, 180, 255) : 
                 (dogButton.getToggleState() ? juce::Colour::fromRGB(255, 140, 40) : juce::Colours::grey));
-    g.setFont(juce::Font(42.0f, juce::Font::bold));
-    g.drawText("SYNTH", 30, 65, 200, 50, juce::Justification::left);
-    
-    // Decorative line
-    g.setColour(juce::Colour::fromRGB(40, 40, 48));
-    g.drawRect(20, 120, getWidth() - 40, 1);
-    
-    // Mode indicator
-    juce::String modeText = catButton.getToggleState() ? "cat mode - meow" : 
-                            (dogButton.getToggleState() ? "dog mode - bark" : "select mode");
-    g.setColour(juce::Colours::white.withAlpha(0.5f));
-    g.setFont(juce::Font(14.0f));
-    g.drawText(modeText, 30, 135, 200, 20, juce::Justification::left);
+    g.setFont(juce::Font(48.0f, juce::Font::bold));
+    g.drawText("SYNTH", 30, 60, 200, 50, juce::Justification::left);
     
     // Level meter
     float level = audioProcessor.getCurrentLevel();
-    int meterWidth = 150;
+    int meterWidth = 200;
     int meterX = getWidth() - meterWidth - 30;
-    int meterY = 140;
-    int meterHeight = 20;
+    int meterY = 30;
+    int meterHeight = 25;
     
-    // Meter background
     g.setColour(juce::Colour::fromRGB(30, 30, 35));
     g.fillRect(meterX, meterY, meterWidth, meterHeight);
     
-    // Meter fill
     g.setColour(catButton.getToggleState() ? juce::Colour::fromRGB(0, 180, 255) : 
                 (dogButton.getToggleState() ? juce::Colour::fromRGB(255, 140, 40) : juce::Colours::white));
     g.fillRect(meterX, meterY, (int)(meterWidth * level), meterHeight);
     
-    // Meter outline
     g.setColour(juce::Colour::fromRGB(60, 60, 70));
     g.drawRect(meterX, meterY, meterWidth, meterHeight, 1);
     
-    // Alias
+    g.setColour(juce::Colours::white.withAlpha(0.5f));
+    g.setFont(juce::Font(12.0f));
+    g.drawText("LEVEL", meterX + 5, meterY + 5, 50, 15, juce::Justification::left);
+    
+    // Version
     g.setColour(juce::Colours::white.withAlpha(0.2f));
     g.setFont(juce::Font(11.0f));
     g.drawText("justdev-chris", getWidth() - 120, getHeight() - 25, 100, 20, juce::Justification::right);
@@ -225,63 +198,66 @@ void NekoSynthAudioProcessorEditor::paint(juce::Graphics& g)
 
 void NekoSynthAudioProcessorEditor::resized()
 {
-    auto area = getLocalBounds().reduced(30);
+    auto area = getLocalBounds().reduced(20);
+    area.removeFromTop(100); // Space for title
     
-    area.removeFromTop(120);
+    auto topRow = area.removeFromTop(80);
     
-    auto buttonRow = area.removeFromTop(40);
-    catButton.setBounds(buttonRow.removeFromLeft(80).reduced(5));
-    dogButton.setBounds(buttonRow.removeFromLeft(80).reduced(5));
+    // Mode group (top left)
+    modeGroup.setBounds(topRow.removeFromLeft(200).reduced(5));
+    auto modeArea = modeGroup.getBounds().reduced(10);
+    catButton.setBounds(modeArea.removeFromLeft(80).reduced(5));
+    dogButton.setBounds(modeArea.reduced(5));
+    
+    // Oscillator group (top middle)
+    oscGroup.setBounds(topRow.removeFromLeft(150).reduced(5));
+    auto oscArea = oscGroup.getBounds().reduced(10);
+    waveformSelector.setBounds(oscArea.reduced(5));
+    
+    // Unison group (top right)
+    unisonGroup.setBounds(topRow.reduced(5));
+    auto unisonArea = unisonGroup.getBounds().reduced(10);
+    voiceCountCombo.setBounds(unisonArea.reduced(5));
     
     area.removeFromTop(10);
     
-    auto waveArea = area.removeFromTop(40);
-    waveformSelector.setBounds(waveArea.removeFromLeft(100).reduced(5));
-    waveformLabel.setBounds(waveArea);
+    // Main content row
+    auto contentRow = area;
+    int groupWidth = (contentRow.getWidth() - 40) / 3;
     
-    area.removeFromTop(20);
+    // Amplitude group (left)
+    ampGroup.setBounds(contentRow.removeFromLeft(groupWidth).reduced(5));
+    auto ampArea = ampGroup.getBounds().reduced(15, 10);
     
-    auto leftSection = area.removeFromLeft(area.getWidth() / 2 - 15);
-    auto rightSection = area;
+    int sliderWidth = ampArea.getWidth() / 5;
+    auto volArea = ampArea.removeFromLeft(sliderWidth);
+    volumeSlider.setBounds(volArea.reduced(2, 5));
     
-    auto adsrRow = leftSection.removeFromTop(200); // Made taller for text boxes
-    int sliderWidth = adsrRow.getWidth() / 5;
+    auto attArea = ampArea.removeFromLeft(sliderWidth);
+    attackSlider.setBounds(attArea.reduced(2, 5));
     
-    auto volArea = adsrRow.removeFromLeft(sliderWidth);
-    volumeSlider.setBounds(volArea.reduced(5, 5));
-    volumeLabel.setBounds(volArea.removeFromBottom(20));
+    auto decArea = ampArea.removeFromLeft(sliderWidth);
+    decaySlider.setBounds(decArea.reduced(2, 5));
     
-    auto attArea = adsrRow.removeFromLeft(sliderWidth);
-    attackSlider.setBounds(attArea.reduced(5, 5));
-    attackLabel.setBounds(attArea.removeFromBottom(20));
+    auto susArea = ampArea.removeFromLeft(sliderWidth);
+    sustainSlider.setBounds(susArea.reduced(2, 5));
     
-    auto decArea = adsrRow.removeFromLeft(sliderWidth);
-    decaySlider.setBounds(decArea.reduced(5, 5));
-    decayLabel.setBounds(decArea.removeFromBottom(20));
+    auto relArea = ampArea;
+    releaseSlider.setBounds(relArea.reduced(2, 5));
     
-    auto susArea = adsrRow.removeFromLeft(sliderWidth);
-    sustainSlider.setBounds(susArea.reduced(5, 5));
-    sustainLabel.setBounds(susArea.removeFromBottom(20));
+    // Filter group (middle)
+    filterGroup.setBounds(contentRow.removeFromLeft(groupWidth).reduced(5));
+    auto filterArea = filterGroup.getBounds().reduced(15, 30);
     
-    auto relArea = adsrRow.removeFromLeft(sliderWidth);
-    releaseSlider.setBounds(relArea.reduced(5, 5));
-    releaseLabel.setBounds(relArea.removeFromBottom(20));
+    auto cutoffArea = filterArea.removeFromLeft(filterArea.getWidth() / 2);
+    filterCutoffSlider.setBounds(cutoffArea.reduced(5, 10));
+    filterResSlider.setBounds(filterArea.reduced(5, 10));
     
-    auto pitchArea = rightSection.removeFromTop(80);
-    pitchRangeSlider.setBounds(pitchArea.removeFromLeft(80).reduced(5, 5));
-    pitchRangeLabel.setBounds(pitchArea);
+    // Pitch group (right)
+    pitchGroup.setBounds(contentRow.reduced(5));
+    auto pitchArea = pitchGroup.getBounds().reduced(15, 30);
     
-    auto filterArea = rightSection.removeFromTop(80);
-    filterCutoffSlider.setBounds(filterArea.removeFromLeft(80).reduced(5, 5));
-    filterCutoffLabel.setBounds(filterArea.removeFromLeft(60));
-    filterResSlider.setBounds(filterArea.removeFromLeft(80).reduced(5, 5));
-    filterResLabel.setBounds(filterArea);
-    
-    auto unisonArea = rightSection.removeFromTop(100);
-    detuneSlider.setBounds(unisonArea.removeFromLeft(80).reduced(5, 5));
-    detuneLabel.setBounds(unisonArea.removeFromLeft(60));
-    voiceCountCombo.setBounds(unisonArea.removeFromLeft(100).reduced(5, 15));
-    voiceCountLabel.setBounds(unisonArea);
-    
-    meterLabel.setBounds(rightSection.getWidth() - 150, rightSection.getHeight() - 30, 150, 20);
+    auto rangeArea = pitchArea.removeFromLeft(pitchArea.getWidth() / 2);
+    pitchRangeSlider.setBounds(rangeArea.reduced(5, 10));
+    detuneSlider.setBounds(pitchArea.reduced(5, 10));
 }
